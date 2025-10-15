@@ -1,12 +1,15 @@
 ﻿using DocumentFormat.OpenXml.Bibliography;
 using DocumentFormat.OpenXml.Drawing.Charts;
 using DocumentFormat.OpenXml.Office2013.Drawing.ChartStyle;
+using DocumentFormat.OpenXml.Office2019.Presentation;
 using DocumentFormat.OpenXml.Presentation;
 using DocumentFormat.OpenXml.Spreadsheet;
+using HashidsNet;
 using System;
 using System.Collections.Generic;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Net.Mail;
 using System.Runtime.Intrinsics.X86;
 using System.Text;
 using System.Text.Json;
@@ -28,394 +31,559 @@ namespace ClickUpDocumentImporter.Helpers
         public string ImageName { get; set; }
     }
 
+    // Internal class to track content blocks with pending images
+    internal class ContentBlock
+    {
+        public JsonObject JsonBlock { get; set; }
+        public byte[] ImageData { get; set; }
+        public string FileName { get; set; }
+        public bool IsImageBlock { get; set; }
+    }
+
+    // Internal class to track pending images
+    internal class ImageBlock
+    {
+        public byte[] ImageData { get; set; }
+        public string FileName { get; set; }
+        public string Placeholder { get; set; }
+    }
+
     /// <summary>
     /// ClickUpDocumentBuilder helps build and update ClickUp pages with mixed content (text,
     /// headings, images).
     ///
-    /// Key Point: Sequential Building: The ClickUpDocumentBuilder maintains a list of content
-    /// blocks that you add in the order they appear in your source document.
+    /// Key Fetures:
+    /// 1. Correct Flow:
     ///
-    /// Two Approaches:
+    /// Create the page first with text content
+    /// Upload images to the page(not workspace) using /api/v3/page/{pageId
+    /// }/ attachment
+    /// Update the page with the complete content including image URLs
     ///
-    /// 1. Sequential(simpler) : As you parse each element(text, image, heading), immediately upload
-    ///    images and add blocks in order
-    /// 2. Batch Upload(faster) : First upload all images, then build the content structure with the URLs
+    /// 2. Internal Storage:
     ///
-    /// The Critical Part: When you parse your Word/PDF document, you must:
+    /// Uses a ContentBlock class to track pending image data
+    /// Stores byte[] image data until the page is created
     ///
-    /// Iterate through elements in document order
-    /// * Call AddParagraph(), AddImage(), AddHeading() etc. in the same sequence as they appear
-    /// * Only call UpdatePageAsync() once at the end with the complete, ordered content
+    /// 3. Single Method:
     ///
-    /// Example Flow:
-    /// Document: [Title] → [Paragraph] → [Image] → [Paragraph] → [Image]
-    /// ClickUp:  Block 0 → Block 1 → Block 2 → Block 3 → Block 4
+    /// CreateAndPopulatePageAsync() now handles the entire workflow:
     ///
-    /// This ensures images appear exactly where they were in the original document.
-    /// </summary>
-    /// <remarks>
-    /// Creating a New Page
-    ///         var builder = new ClickUpDocumentBuilder(apiToken);
+    /// Creates page with text + placeholders
+    /// Uploads all images to the created page
+    /// Updates page with final content
     ///
-    ///         // Add all your content
-    ///         builder.AddHeading("My Document", 1);
-    ///         builder.AddParagraph("Some text...");
-    ///         await builder.AddImageAsync(imageData, "image.png", workspaceId);
-    ///
-    ///             // Create new page with content (optionally under a parent page)
-    ///             string newPageId = await builder.CreateAndPopulatePageAsync(
-    ///                 workspaceId,
-    ///                 "My Document Name",
-    ///                 parentPageId  // optional - null for top-level page
-    ///             );
-    /// Updating an Existing Page
+    /// 4. Usage Example:
+    /// C#
     ///     var builder = new ClickUpDocumentBuilder(apiToken);
     ///
-    ///         // Add all your content
-    ///         builder.AddHeading("My Document", 1);
-    ///     builder.AddParagraph("Some text...");
-    ///     await builder.AddImageAsync(imageData, "image.png", workspaceId);
+    ///     // Add content in document order
+    ///     builder.AddHeading("My Document Title", 1);
+    ///     builder.AddParagraph("Introduction text here...");
+    ///     builder.AddImage(imageBytes1, "diagram1.png");
+    ///     builder.AddParagraph("More text after the image...");
+    ///     builder.AddImage(imageBytes2, "screenshot.png");
     ///
-    ///         // Update existing page
-    ///         bool success = await builder.UpdatePageAsync(existingPageId);
-    /// Key Parameters:
+    ///     // Create and populate in one call
+    ///     string pageId = await builder.CreateAndPopulatePageAsync(
+    ///         workspaceId: "your-workspace-id",
+    ///         pageName: "Imported Document",
+    ///         parentPageId: "parent-page-id"
+    ///     );
     ///
-    /// * workspaceId: Required for creating pages and uploading images
-    /// * parentPageId: Optional - use this to create the page as a child of another page (for organizing documents hierarchically)
-    /// * pageName: The title/name of the new page
-    ///
-    /// The content is populated during creation, so images will be in the correct positions right from the start!
+    /// The corrected flow ensures images are uploaded to the correct page context and maintains the document's content order.
     /// </remarks>
     public class ClickUpDocumentBuilder
     {
         private readonly HttpClient _httpClient;
-        private readonly string _apiToken;
-        private readonly List<JsonObject> _contentBlocks;
+        //private readonly string _apiToken;
+        private readonly StringBuilder _markdownContent;
+        private readonly List<ImageBlock> _pendingImages;
 
-        public ClickUpDocumentBuilder(string apiToken)
+        public ClickUpDocumentBuilder(HttpClient httpClient)
         {
-            _apiToken = apiToken;
-            _httpClient = new HttpClient();
-            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _apiToken);
-            _contentBlocks = new List<JsonObject>();
+            _httpClient = httpClient;
+            _markdownContent = new StringBuilder();
+            _pendingImages = new List<ImageBlock>();
         }
 
-        // Upload image and return URL
-        public async Task<string> UploadImageAsync(byte[] imageData, string fileName, string workspaceId)
+
+        // Add a paragraph
+        public void AddParagraph(string text)
+        {
+            _markdownContent.AppendLine(text);
+            _markdownContent.AppendLine(); // Add blank line after paragraph
+        }
+
+        // Add a heading
+        public void AddHeading(string text, int level = 1)
+        {
+            string prefix = new string('#', level);
+            _markdownContent.AppendLine($"{prefix} {text}");
+            _markdownContent.AppendLine();
+        }
+
+        public void AddMarkdown(string markdown)
+        {
+            _markdownContent.AppendLine(markdown);
+            _markdownContent.AppendLine();
+        }
+
+        // Add an image (stores image data, uploads later)
+        public async Task AddImage(byte[] imageData, string fileName, string listId)
+        {
+            //string placeholder = $"[[IMAGE_PLACEHOLDER_{_pendingImages.Count}]]";
+            //_pendingImages.Add(new ImageBlock
+            //{
+            //    ImageData = imageData,
+            //    FileName = fileName,
+            //    Placeholder = placeholder
+            //});
+
+            if (string.IsNullOrEmpty(listId))
+            {
+                throw new ArgumentException("listId is required to upload images");
+            }
+
+            string imageUrl = await UploadImageViaTaskAsync(imageData, fileName, listId);
+            //string imageUrl = await UploadImageViaTaskAsync(imageData, fileName, listId);
+
+
+            //// Replace placeholder with markdown image syntax
+            //updatedMarkdown = updatedMarkdown.Replace(
+            //    imageBlock.Placeholder,
+            //    $"![{imageBlock.FileName}]({imageUrl})"
+            //);
+
+
+            //_markdownContent.AppendLine(placeholder);
+            _markdownContent.AppendLine($"![{fileName}]({imageUrl})");
+            _markdownContent.AppendLine();
+        }
+
+        // Upload image to a specific page
+        private async Task<string> UploadImageToPageAsync(byte[] imageData, string fileName, string workspaceId, string docId, string pageId)
         {
             var content = new MultipartFormDataContent();
             var fileContent = new ByteArrayContent(imageData);
-            fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse("image/png");
+
+            // Determine content type based on file extension
+            string contentType = "image/png";
+            string ext = Path.GetExtension(fileName).ToLower();
+            if (ext == ".jpg" || ext == ".jpeg")
+                contentType = "image/jpeg";
+            else if (ext == ".gif")
+                contentType = "image/gif";
+            else if (ext == ".webp")
+                contentType = "image/webp";
+
+            fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(contentType);
             content.Add(fileContent, "attachment", fileName);
 
+            string url = $"https://api.clickup.com/api/v3/page/{pageId}/attachment";
+            //string url2 = $"https://api.clickup.com/api/v3/workspaces/{workspaceId}/docs/{docId}/page/{pageId}/attachment";
             var response = await _httpClient.PostAsync(
-                $"https://api.clickup.com/api/v2/workspace/{workspaceId}/attachment",
+                url,
                 content
             );
 
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Failed to upload image {fileName}. Status: {response.StatusCode}, Error: {errorContent}");
+            }
+
             var responseJson = await response.Content.ReadAsStringAsync();
             var result = JsonSerializer.Deserialize<JsonNode>(responseJson);
 
             return result["url"].GetValue<string>();
         }
 
-        // Add a paragraph block
-        public void AddParagraph(string text)
+        //// Create a Doc (if you need to create a new Doc)
+        //public async Task<string> CreateDocAsync(string workspaceId, string docName, string parentFolderId = null)
+        //{
+        //    var createPayload = new JsonObject
+        //    {
+        //        ["name"] = docName
+        //    };
+
+        //    if (!string.IsNullOrEmpty(parentFolderId))
+        //    {
+        //        createPayload["parent_id"] = parentFolderId;
+        //    }
+
+        //    var jsonString = createPayload.ToJsonString();
+        //    Console.WriteLine($"Creating Doc - Request URL: https://api.clickup.com/api/v3/workspaces/{workspaceId}/docs");
+        //    Console.WriteLine($"Request Body: {jsonString}");
+
+        //    var content = new StringContent(jsonString, Encoding.UTF8, "application/json");
+
+        //    var response = await _httpClient.PostAsync(
+        //        $"https://api.clickup.com/api/v3/workspaces/{workspaceId}/docs",
+        //        content
+        //    );
+
+        //    if (!response.IsSuccessStatusCode)
+        //    {
+        //        var errorContent = await response.Content.ReadAsStringAsync();
+        //        Console.WriteLine($"Error Response: {errorContent}");
+        //        throw new HttpRequestException($"Failed to create Doc. Status: {response.StatusCode}, Error: {errorContent}");
+        //    }
+
+        //    var responseJson = await response.Content.ReadAsStringAsync();
+        //    var result = JsonSerializer.Deserialize<JsonNode>(responseJson);
+
+        //    var docId = result["id"].GetValue<string>();
+        //    Console.WriteLine($"Created Doc: {docName} (ID: {docId})");
+
+        //    return docId;
+        //}
+
+        // WORKAROUND: Upload image to a task first, then reference in page
+        // ClickUp doesn't have direct page attachment API, but task attachments work
+        private async Task<string> UploadImageViaTaskAsync(byte[] imageData, string fileName, string listId)
         {
-            var block = new JsonObject
+            // Step 1: Create a temporary task to hold the image
+            var taskPayload = new JsonObject
             {
-                ["type"] = "paragraph",
-                ["content"] = new JsonArray
+                ["name"] = $"[Image Upload] {fileName}"
+            };
+
+            var taskResponse = await _httpClient.PostAsync(
+                $"https://api.clickup.com/api/v2/list/{listId}/task",
+                new StringContent(taskPayload.ToJsonString(), Encoding.UTF8, "application/json")
+            );
+
+            if (!taskResponse.IsSuccessStatusCode)
             {
-                new JsonObject
-                {
-                    ["type"] = "text",
-                    ["text"] = text
-                }
+                throw new HttpRequestException($"Failed to create temporary task for image upload");
             }
-            };
-            _contentBlocks.Add(block);
-        }
 
-        // Add a heading block
-        public void AddHeading(string text, int level = 1)
-        {
-            var block = new JsonObject
+            var taskJson = await taskResponse.Content.ReadAsStringAsync();
+            var taskResult = JsonSerializer.Deserialize<JsonNode>(taskJson);
+            var taskId = taskResult["id"].GetValue<string>();
+
+            // Step 2: Upload image to the task
+            var content = new MultipartFormDataContent();
+            var fileContent = new ByteArrayContent(imageData);
+            fileContent.Headers.ContentType = MediaTypeHeaderValue.Parse(GetContentType(fileName));
+            content.Add(fileContent, "attachment", fileName);
+
+            var uploadResponse = await _httpClient.PostAsync(
+                $"https://api.clickup.com/api/v2/task/{taskId}/attachment",
+                content
+            );
+
+            if (!uploadResponse.IsSuccessStatusCode)
             {
-                ["type"] = "heading",
-                ["attrs"] = new JsonObject { ["level"] = level },
-                ["content"] = new JsonArray
-            {
-                new JsonObject
-                {
-                    ["type"] = "text",
-                    ["text"] = text
-                }
+                var errorContent = await uploadResponse.Content.ReadAsStringAsync();
+                throw new HttpRequestException($"Failed to upload image to task. Status: {uploadResponse.StatusCode}, Error: {errorContent}");
             }
-            };
-            _contentBlocks.Add(block);
+
+            var uploadJson = await uploadResponse.Content.ReadAsStringAsync();
+            var uploadResult = JsonSerializer.Deserialize<JsonNode>(uploadJson);
+            var imageUrl = uploadResult["url"].GetValue<string>();
+
+            // Step 3: Optionally delete the temporary task (or keep it as an image library)
+            // await _httpClient.DeleteAsync($"https://api.clickup.com/api/v2/task/{taskId}");
+
+            Console.WriteLine($"Image uploaded via task: {fileName}");
+            return imageUrl;
         }
 
-        // Add an image block at current position
-        public async Task AddImageAsync(byte[] imageData, string fileName, string workspaceId)
+        // Helper method to determine content type
+        private string GetContentType(string fileName)
         {
-            // Upload the image first
-            var imageUrl = await UploadImageAsync(imageData, fileName, workspaceId);
-
-            // Create image block
-            var block = new JsonObject
+            string ext = Path.GetExtension(fileName).ToLower();
+            return ext switch
             {
-                ["type"] = "image",
-                ["attrs"] = new JsonObject
-                {
-                    ["src"] = imageUrl,
-                    ["alt"] = fileName
-                }
-            };
-
-            _contentBlocks.Add(block);
-            Console.WriteLine($"Image added at position {_contentBlocks.Count - 1}: {fileName}");
-        }
-
-        // Add a placeholder for an image (to be uploaded later)
-        public void AddImagePlaceholder(int imageIndex)
-        {
-            var block = new JsonObject
-            {
-                ["type"] = "image_placeholder",
-                ["attrs"] = new JsonObject
-                {
-                    ["imageIndex"] = imageIndex
-                }
-            };
-            _contentBlocks.Add(block);
-        }
-
-        // Replace placeholder with actual uploaded image
-        public async Task ReplaceImagePlaceholderAsync(int placeholderIndex, byte[] imageData,
-            string fileName, string workspaceId)
-        {
-            var imageUrl = await UploadImageAsync(imageData, fileName, workspaceId);
-
-            _contentBlocks[placeholderIndex] = new JsonObject
-            {
-                ["type"] = "image",
-                ["attrs"] = new JsonObject
-                {
-                    ["src"] = imageUrl,
-                    ["alt"] = fileName
-                }
+                ".jpg" or ".jpeg" => "image/jpeg",
+                ".png" => "image/png",
+                ".gif" => "image/gif",
+                ".webp" => "image/webp",
+                ".svg" => "image/svg+xml",
+                _ => "application/octet-stream"
             };
         }
 
-        // Create a new ClickUp page
-        public async Task<string> CreatePageAsync(string workspaceId, string pageName, string parentPageId = null)
+        // OPTION 2: Convert image to base64 data URI (works for small images)
+        private string ConvertImageToDataUri(byte[] imageData, string fileName)
         {
-            var contentArray = new JsonArray();
-            foreach (var block in _contentBlocks)
-            {
-                contentArray.Add(block);
-            }
+            string contentType = GetContentType(fileName);
+            string base64 = Convert.ToBase64String(imageData);
+            return $"data:{contentType};base64,{base64}";
+        }
+
+        // Create page with markdown content, then upload images and update
+        // Set uploadMethod: "base64" (default), "task" (uses task attachment workaround), or "external" (needs implementation)
+        public async Task<string> CreateAndPopulatePageAsync(string workspaceId, string docId, string pageName,
+            string parentPageId = null, string uploadMethod = "base64", string listIdForTaskUpload = null)
+        {
+            // Step 1: Create page with markdown content (with placeholders for images)
+            var markdownText = _markdownContent.ToString();
 
             var createPayload = new JsonObject
             {
                 ["name"] = pageName,
-                ["content"] = contentArray
+                ["content"] = markdownText
             };
 
-            // If there's a parent page, add it to the payload
             if (!string.IsNullOrEmpty(parentPageId))
             {
                 createPayload["parent_page_id"] = parentPageId;
             }
 
             var jsonString = createPayload.ToJsonString();
-            var content = new StringContent(
-                jsonString,
-                Encoding.UTF8,
-                "application/json"
-            );
+            Console.WriteLine($"Creating Page - Request URL: https://api.clickup.com/api/v3/workspaces/{workspaceId}/docs/{docId}/pages");
+            Console.WriteLine($"Request Body (first 500 chars): {jsonString.Substring(0, Math.Min(500, jsonString.Length))}...");
+
+            var content = new StringContent(jsonString, Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync(
-                $"https://api.clickup.com/api/v3/workspaces/{workspaceId}/pages",
+                $"https://api.clickup.com/api/v3/workspaces/{workspaceId}/docs/{docId}/pages",
                 content
             );
 
-            response.EnsureSuccessStatusCode();
+            if (!response.IsSuccessStatusCode)
+            {
+                var errorContent = await response.Content.ReadAsStringAsync();
+                Console.WriteLine($"Error Response: {errorContent}");
+                throw new HttpRequestException($"Failed to create Page. Status: {response.StatusCode}, Error: {errorContent}");
+            }
+
             var responseJson = await response.Content.ReadAsStringAsync();
             var result = JsonSerializer.Deserialize<JsonNode>(responseJson);
-
             var pageId = result["id"].GetValue<string>();
-            Console.WriteLine($"Created new page: {pageName} (ID: {pageId})");
+
+            Console.WriteLine($"Created page: {pageName} (ID: {pageId})");
+
+            //// Step 2: Process images based on upload method
+            //string updatedMarkdown = markdownText;
+
+            //foreach (var imageBlock in _pendingImages)
+            //{
+            //    try
+            //    {
+            //        Console.WriteLine($"Processing image: {imageBlock.FileName} (Method: {uploadMethod})");
+
+            //        string imageUrl;
+
+            //        switch (uploadMethod.ToLower())
+            //        {
+            //            case "task":
+            //                // Upload via task attachment (requires a list ID)
+            //                if (string.IsNullOrEmpty(listIdForTaskUpload))
+            //                {
+            //                    throw new ArgumentException("listIdForTaskUpload is required when using 'task' upload method");
+            //                }
+            //                imageUrl = await UploadImageViaTaskAsync(imageBlock.ImageData, imageBlock.FileName, listIdForTaskUpload);
+            //                break;
+
+            //            case "external":
+            //                // You would implement external hosting here
+            //                throw new NotImplementedException("External hosting not implemented. Use 'base64' or 'task' method.");
+
+            //            case "base64":
+            //            default:
+            //                // Convert to base64 data URI
+            //                imageUrl = ConvertImageToDataUri(imageBlock.ImageData, imageBlock.FileName);
+            //                break;
+            //        }
+
+            //        // Replace placeholder with markdown image syntax
+            //        updatedMarkdown = updatedMarkdown.Replace(
+            //            imageBlock.Placeholder,
+            //            $"![{imageBlock.FileName}]({imageUrl})"
+            //        );
+
+            //        Console.WriteLine($"Image processed successfully: {imageBlock.FileName}");
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        Console.WriteLine($"Failed to process image {imageBlock.FileName}: {ex.Message}");
+            //        // Replace with text placeholder on error
+            //        updatedMarkdown = updatedMarkdown.Replace(
+            //            imageBlock.Placeholder,
+            //            $"[Image failed to load: {imageBlock.FileName}]"
+            //        );
+            //    }
+            //}
+
+            //// Step 3: Update page with complete markdown including images
+            //if (_pendingImages.Any() && updatedMarkdown != markdownText)
+            //{
+            //    var updatePayload = new JsonObject
+            //    {
+            //        ["content"] = updatedMarkdown
+            //    };
+
+            //    var updateJsonString = updatePayload.ToJsonString();
+            //    var updateContent = new StringContent(updateJsonString, Encoding.UTF8, "application/json");
+
+            //    // Correct endpoint format: /api/v3/workspaces/{workspace_id}/docs/{doc_id}/pages/{page_id}
+            //    var updateResponse = await _httpClient.PutAsync(
+            //        $"https://api.clickup.com/api/v3/workspaces/{workspaceId}/docs/{docId}/pages/{pageId}",
+            //        updateContent
+            //    );
+
+            //    if (updateResponse.IsSuccessStatusCode)
+            //    {
+            //        Console.WriteLine($"Page updated with all images: {pageName}");
+            //    }
+            //    else
+            //    {
+            //        var errorContent = await updateResponse.Content.ReadAsStringAsync();
+            //        Console.WriteLine($"Warning: Failed to update page with images. Status: {updateResponse.StatusCode}, Error: {errorContent}");
+            //    }
+            //}
 
             return pageId;
         }
 
-        // Update an existing ClickUp page with all content blocks
-        public async Task<bool> UpdatePageAsync(string pageId)
-        {
-            var contentArray = new JsonArray();
-            foreach (var block in _contentBlocks)
-            {
-                contentArray.Add(block);
-            }
+        //// Create page with markdown content, then upload images and update
+        //public async Task<string> CreateAndPopulatePageAsync(string workspaceId, string docId, string pageName, string parentPageId = null)
+        //{
+        //    // Step 1: Create page with markdown content (with placeholders for images)
+        //    var markdownText = _markdownContent.ToString();
 
-            var updatePayload = new JsonObject
-            {
-                ["content"] = contentArray
-            };
+        //    var createPayload = new JsonObject
+        //    {
+        //        ["name"] = pageName,
+        //        ["content"] = markdownText
+        //    };
 
-            var jsonString = updatePayload.ToJsonString();
-            var content = new StringContent(
-                jsonString,
-                Encoding.UTF8,
-                "application/json"
-            );
+        //    if (!string.IsNullOrEmpty(parentPageId))
+        //    {
+        //        createPayload["parent_page_id"] = parentPageId;
+        //    }
 
-            var response = await _httpClient.PutAsync(
-                $"https://api.clickup.com/api/v3/page/{pageId}",
-                content
-            );
+        //    var jsonString = createPayload.ToJsonString();
+        //    Console.WriteLine($"Creating Page - Request URL: https://api.clickup.com/api/v3/workspaces/{workspaceId}/docs/{docId}/pages");
+        //    Console.WriteLine($"Request Body (first 500 chars): {jsonString.Substring(0, Math.Min(500, jsonString.Length))}...");
 
-            return response.IsSuccessStatusCode;
-        }
+        //    var content = new StringContent(jsonString, Encoding.UTF8, "application/json");
 
-        // Create a new page and populate it with content in one call
-        public async Task<string> CreateAndPopulatePageAsync(string workspaceId, string pageName, string parentPageId = null)
-        {
-            // Content is already added via AddParagraph, AddImage, etc.
-            return await CreatePageAsync(workspaceId, pageName, parentPageId);
-        }
+        //    var response = await _httpClient.PostAsync(
+        //        $"https://api.clickup.com/api/v3/workspaces/{workspaceId}/docs/{docId}/pages",
+        //        content
+        //    );
 
-        // Clear all content blocks
+        //    if (!response.IsSuccessStatusCode)
+        //    {
+        //        var errorContent = await response.Content.ReadAsStringAsync();
+        //        Console.WriteLine($"Error Response: {errorContent}");
+        //        throw new HttpRequestException($"Failed to create Page. Status: {response.StatusCode}, Error: {errorContent}");
+        //    }
+
+        //    var responseJson = await response.Content.ReadAsStringAsync();
+        //    var result = JsonSerializer.Deserialize<JsonNode>(responseJson);
+        //    var pageId = result["id"].GetValue<string>();
+
+        //    Console.WriteLine($"Created page: {pageName} (ID: {pageId})");
+
+        //    // Step 2: Upload all images to the newly created page
+        //    string updatedMarkdown = markdownText;
+
+        //    foreach (var imageBlock in _pendingImages)
+        //    {
+        //        try
+        //        {
+        //            Console.WriteLine($"Processing image: {imageBlock.FileName}");
+
+        //            // OPTION 1: Upload to external hosting (recommended for production)
+        //            // var imageUrl = await UploadImageToExternalHostAsync(imageBlock.ImageData, imageBlock.FileName);
+
+        //            // OPTION 2: Use base64 data URI (works but makes markdown very large)
+        //            var imageUrl = ConvertImageToDataUri(imageBlock.ImageData, imageBlock.FileName);
+
+        //            // Replace placeholder with markdown image syntax
+        //            updatedMarkdown = updatedMarkdown.Replace(
+        //                imageBlock.Placeholder,
+        //                $"![{imageBlock.FileName}]({imageUrl})"
+        //            );
+
+        //            Console.WriteLine($"Image processed successfully: {imageBlock.FileName}");
+        //        }
+        //        catch (Exception ex)
+        //        {
+        //            Console.WriteLine($"Failed to process image {imageBlock.FileName}: {ex.Message}");
+        //            // Replace with text placeholder on error
+        //            updatedMarkdown = updatedMarkdown.Replace(
+        //                imageBlock.Placeholder,
+        //                $"[Image failed to load: {imageBlock.FileName}]"
+        //            );
+        //        }
+        //    }
+
+        //    //foreach (var imageBlock in _pendingImages)
+        //    //{
+        //    //    try
+        //    //    {
+        //    //        Console.WriteLine($"Uploading image: {imageBlock.FileName}");
+        //    //        var imageUrl = await UploadImageToPageAsync(imageBlock.ImageData, imageBlock.FileName, workspaceId, docId, pageId);
+
+        //    //        // Replace placeholder with markdown image syntax
+        //    //        updatedMarkdown = updatedMarkdown.Replace(
+        //    //            imageBlock.Placeholder,
+        //    //            $"![{imageBlock.FileName}]({imageUrl})"
+        //    //        );
+
+        //    //        Console.WriteLine($"Image uploaded successfully: {imageBlock.FileName}");
+        //    //    }
+        //    //    catch (Exception ex)
+        //    //    {
+        //    //        Console.WriteLine($"Failed to upload image {imageBlock.FileName}: {ex.Message}");
+        //    //        // Replace with text placeholder on error
+        //    //        updatedMarkdown = updatedMarkdown.Replace(
+        //    //            imageBlock.Placeholder,
+        //    //            $"[Image failed to upload: {imageBlock.FileName}]"
+        //    //        );
+        //    //    }
+        //    //}
+
+        //    // Step 3: Update page with complete markdown including image URLs
+        //    if (_pendingImages.Any())
+        //    {
+        //        var updatePayload = new JsonObject
+        //        {
+        //            ["content"] = updatedMarkdown
+        //        };
+
+        //        var updateJsonString = updatePayload.ToJsonString();
+        //        var updateContent = new StringContent(updateJsonString, Encoding.UTF8, "application/json");
+
+        //        //string url = $"https://api.clickup.com/api/v3/page/{pageId}"; // doesn't work
+        //        string url = $"https://api.clickup.com/api/v3/workspaces/{workspaceId}/docs/{docId}/pages/{pageId}";
+        //        var updateResponse = await _httpClient.PutAsync(
+        //            url,
+        //            updateContent
+        //        );
+
+        //        if (updateResponse.IsSuccessStatusCode)
+        //        {
+        //            Console.WriteLine($"Page updated with all images: {pageName}");
+        //        }
+        //        else
+        //        {
+        //            var errorContent = await updateResponse.Content.ReadAsStringAsync();
+        //            Console.WriteLine($"Warning: Failed to update page with images. Status: {updateResponse.StatusCode}, Error: {errorContent}");
+        //        }
+        //    }
+
+        //    return pageId;
+        //}
+
+        // Clear all content
         public void Clear()
         {
-            _contentBlocks.Clear();
+            _markdownContent.Clear();
+            _pendingImages.Clear();
         }
 
-        // Make content blocks accessible for batch upload scenario
-        public List<JsonObject> ContentBlocks => _contentBlocks;
+        // Get current markdown content (for debugging)
+        public string GetMarkdownContent()
+        {
+            return _markdownContent.ToString();
+        }
     }
-
-    //// Example: Converting a document with mixed content
-    //class DocumentConverter
-    //{
-    //    // Create a NEW page with content
-    //    public static async Task<string> ConvertDocumentToNewPageAsync(
-    //        string apiToken,
-    //        string workspaceId,
-    //        string pageName,
-    //        string parentPageId = null)
-    //    {
-    //        var builder = new ClickUpDocumentBuilder(apiToken);
-
-    //        // Build content blocks in order
-    //        builder.AddHeading("Document Title", 1);
-
-    //        builder.AddParagraph("This is the first paragraph of the document.");
-
-    //        // Image appears here in the original document
-    //        byte[] image1Data = /* extracted image bytes */;
-    //        await builder.AddImageAsync(image1Data, "diagram1.png", workspaceId);
-
-    //        builder.AddParagraph("This paragraph comes after the first image.");
-
-    //        builder.AddHeading("Section 2", 2);
-
-    //        builder.AddParagraph("Another paragraph with more content.");
-
-    //        // Another image in sequence
-    //        byte[] image2Data = /* extracted image bytes */;
-    //        await builder.AddImageAsync(image2Data, "chart1.png", workspaceId);
-
-    //        builder.AddParagraph("Final paragraph after the second image.");
-
-    //        // Create the new page with all content
-    //        var newPageId = await builder.CreateAndPopulatePageAsync(workspaceId, pageName, parentPageId);
-    //        Console.WriteLine($"Document conversion completed. New page ID: {newPageId}");
-
-    //        return newPageId;
-    //    }
-
-    //    // Update an EXISTING page with content
-    //    public static async Task ConvertDocumentToExistingPageAsync(
-    //        string apiToken,
-    //        string workspaceId,
-    //        string pageId)
-    //    {
-    //        var builder = new ClickUpDocumentBuilder(apiToken);
-
-    //        // Simulate parsing your Word/PDF document in order
-    //        builder.AddHeading("Document Title", 1);
-
-    //        builder.AddParagraph("This is the first paragraph of the document.");
-
-    //        byte[] image1Data = /* extracted image bytes */;
-    //        await builder.AddImageAsync(image1Data, "diagram1.png", workspaceId);
-
-    //        builder.AddParagraph("This paragraph comes after the first image.");
-
-    //        // Update the existing ClickUp page with all content in correct order
-    //        var success = await builder.UpdatePageAsync(pageId);
-    //        Console.WriteLine($"Document conversion completed: {success}");
-    //    }
-
-    //    // Alternative approach: Batch upload images first, then build content
-    //    public static async Task ConvertWithBatchUploadAsync(
-    //        string apiToken,
-    //        string workspaceId,
-    //        string pageId,
-    //        List<DocumentElement> elements) // Your parsed document elements
-    //    {
-    //        var builder = new ClickUpDocumentBuilder(apiToken);
-
-    //        // First pass: Upload all images and store URLs
-    //        var imageUrls = new Dictionary<int, string>();
-
-    //        for (int i = 0; i < elements.Count; i++)
-    //        {
-    //            if (elements[i].Type == ElementType.Image)
-    //            {
-    //                var url = await builder.UploadImageAsync(
-    //                    elements[i].ImageData,
-    //                    elements[i].ImageName,
-    //                    workspaceId
-    //                );
-    //                imageUrls[i] = url;
-    //                Console.WriteLine($"Uploaded image {i}: {elements[i].ImageName}");
-    //            }
-    //        }
-
-    //        // Second pass: Build content in correct order with uploaded image URLs
-    //        for (int i = 0; i < elements.Count; i++)
-    //        {
-    //            switch (elements[i].Type)
-    //            {
-    //                case ElementType.Heading:
-    //                    builder.AddHeading(elements[i].Text, elements[i].Level);
-    //                    break;
-    //                case ElementType.Paragraph:
-    //                    builder.AddParagraph(elements[i].Text);
-    //                    break;
-    //                case ElementType.Image:
-    //                    // Add image block with pre-uploaded URL
-    //                    builder.ContentBlocks.Add(new JsonObject
-    //                    {
-    //                        ["type"] = "image",
-    //                        ["attrs"] = new JsonObject
-    //                        {
-    //                            ["src"] = imageUrls[i],
-    //                            ["alt"] = elements[i].ImageName
-    //                        }
-    //                    });
-    //                    break;
-    //            }
-    //        }
-
-    //        // Update page once with all content
-    //        var success = await builder.UpdatePageAsync(pageId);
-    //        Console.WriteLine($"Batch conversion completed: {success}");
-    //    }
-    //}
 }

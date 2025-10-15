@@ -1,4 +1,6 @@
-﻿using DocumentFormat.OpenXml.Packaging;
+﻿using ClickUpDocumentImporter.Helpers;
+using DocumentFormat.OpenXml.Packaging;
+using HashidsNet;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +18,8 @@ namespace ClickUpDocumentImporter.DocumentConverter
         {
             var images = new List<ImageData>();
             int imageIndex = 0;
+
+            string uniqueId = Globals.CreateUniqueImageId(wordFilePath);
 
             using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(wordFilePath, false))
             {
@@ -39,7 +43,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
                             images.Add(new ImageData
                             {
                                 Data = imageBytes,
-                                FileName = $"image_{imageIndex}{extension}",
+                                FileName = $"image_{imageIndex}_{uniqueId}_{extension}",
                                 Index = imageIndex,
                                 ContentType = imagePart.ContentType
                             });

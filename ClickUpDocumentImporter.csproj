@@ -8,7 +8,14 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Helpers\Archive\**" />
+    <EmbeddedResource Remove="Helpers\Archive\**" />
+    <None Remove="Helpers\Archive\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <PackageReference Include="DocumentFormat.OpenXml" Version="3.3.0" />
+    <PackageReference Include="Hashids.net" Version="1.7.0" />
     <PackageReference Include="itext" Version="9.3.0" />
     <PackageReference Include="iTextSharp" Version="5.5.13.4" />
     <PackageReference Include="System.Text.Json" Version="9.0.9" />

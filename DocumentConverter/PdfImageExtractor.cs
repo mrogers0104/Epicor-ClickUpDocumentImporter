@@ -1,7 +1,8 @@
-﻿using iText.Kernel.Pdf;
+﻿using ClickUpDocumentImporter.Helpers;
+using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser.Data;
-using iText.Kernel.Pdf.Xobject;
 using iText.Kernel.Pdf.Canvas.Parser.Listener;
+using iText.Kernel.Pdf.Xobject;
 using iTextSharp.text.pdf.parser;
 using System;
 using System.Collections.Generic;
@@ -17,60 +18,158 @@ namespace ClickUpDocumentImporter.DocumentConverter
     /// </summary>
     public class PdfImageExtractor
     {
+        //public static List<ImageData> ExtractImagesFromPdf(string pdfFilePath)
+        //{
+        //    var images = new List<ImageData>();
+        //    int imageIndex = 0;
+
+        //    string uniqueId = Globals.CreateUniqueImageId(pdfFilePath);
+
+        //    using (PdfDocument pdfDoc = new PdfDocument(new PdfReader(pdfFilePath)))
+        //    {
+        //        int numberOfPages = pdfDoc.GetNumberOfPages();
+
+        //        for (int pageNum = 1; pageNum <= numberOfPages; pageNum++)
+        //        {
+        //            var page = pdfDoc.GetPage(pageNum);
+        //            var resources = page.GetResources();
+
+        //            // !!! Need to find out why this line does not compile
+        //            //var xObjects = resources.GetResourceNames(PdfName.XObject);
+        //            //.Where(name => resources.GetResourceType(name) == PdfName.XObject);
+
+        //            // Get the dictionary of XObjects associated with the page resources.
+        //            var xObjectMap = resources.GetResource(PdfName.XObject);
+        //            if (xObjectMap == null || !xObjectMap.IsDictionary())
+        //            {
+        //                // Skip if there are no XObjects on this page
+        //                continue;
+        //            }
+
+        //            // Get the actual names (keys) from the XObject dictionary
+        //            var xObjects = ((PdfDictionary)xObjectMap).KeySet();
+
+        //            foreach (PdfName xObjectName in xObjects)
+        //            {
+        //                var xObject = resources.GetResource(xObjectName);
+
+        //                if (xObject is PdfStream stream)
+        //                {
+        //                    var subType = stream.GetAsName(PdfName.Subtype);
+
+        //                    if (PdfName.Image.Equals(subType))
+        //                    {
+        //                        try
+        //                        {
+        //                            PdfImageXObject image = new PdfImageXObject(stream);
+        //                            byte[] imageBytes = image.GetImageBytes();
+
+        //                            // Determine file extension
+        //                            string extension = DetermineImageExtension(image);
+
+        //                            images.Add(new ImageData
+        //                            {
+        //                                Data = imageBytes,
+        //                                FileName = $"pdf_image_{imageIndex}_{uniqueId}_{extension}",
+        //                                Index = imageIndex,
+        //                                PageNumber = pageNum
+        //                            });
+
+        //                            imageIndex++;
+        //                        }
+        //                        catch (Exception ex)
+        //                        {
+        //                            Console.WriteLine($"Error extracting image on page {pageNum}: {ex.Message}");
+        //                        }
+        //                    }
+        //                }
+        //            }
+        //        }
+        //    }
+
+        //    Console.WriteLine($"Extracted {images.Count} images from PDF");
+        //    return images;
+        //}
+
         public static List<ImageData> ExtractImagesFromPdf(string pdfFilePath)
         {
             var images = new List<ImageData>();
             int imageIndex = 0;
 
-            using (PdfDocument pdfDoc = new PdfDocument(new PdfReader(pdfFilePath)))
+            // Assuming this method exists and works
+            string uniqueId = Globals.CreateUniqueImageId(pdfFilePath); 
+
+            try
             {
-                int numberOfPages = pdfDoc.GetNumberOfPages();
-
-                for (int pageNum = 1; pageNum <= numberOfPages; pageNum++)
+                using (PdfDocument pdfDoc = new PdfDocument(new PdfReader(pdfFilePath)))
                 {
-                    var page = pdfDoc.GetPage(pageNum);
-                    var resources = page.GetResources();
+                    int numberOfPages = pdfDoc.GetNumberOfPages();
 
-                    // !!! Need to find out why this line does not compile
-                    var xObjects = resources.GetResourceNames();
-                        //.Where(name => resources.GetResourceType(name) == PdfName.XObject);
-
-                    foreach (var xObjectName in xObjects)
+                    for (int pageNum = 1; pageNum <= numberOfPages; pageNum++)
                     {
-                        var xObject = resources.GetResource(xObjectName);
+                        var page = pdfDoc.GetPage(pageNum);
+                        var resources = page.GetResources();
 
-                        if (xObject is PdfStream stream)
+                        // 1. Get the XObject dictionary from the resources
+                        PdfDictionary xObjectMap = resources.GetResource(PdfName.XObject);
+
+                        // 2. Safely check if the dictionary exists
+                        if (xObjectMap == null || !xObjectMap.IsDictionary())
                         {
-                            var subType = stream.GetAsName(PdfName.Subtype);
+                            continue; // Skip if no XObjects found
+                        }
 
-                            if (PdfName.Image.Equals(subType))
+                        // 3. Iterate over the keys (names) in the XObject dictionary
+                        var xObjects = ((PdfDictionary)xObjectMap).KeySet();
+
+                        foreach (PdfName xObjectName in xObjects)
+                        {
+                            //// 3. Get the specific resource object using the correct resource type and name
+                            //var xObject = resources.GetResource(PdfName.XObject, xObjectName);
+                            // 3. Get the specific XObject (stream or dictionary) from the XObject dictionary
+                            // This returns the PdfObject associated with the XObject name.
+                            var xObject = xObjectMap.GetAsStream(xObjectName);
+
+                            if (xObject != null && xObject.IsStream())
                             {
-                                try
+                                var stream = (PdfStream)xObject;
+                                var subType = stream.GetAsName(PdfName.Subtype);
+
+                                // 4. Check if the subtype is an Image
+                                if (PdfName.Image.Equals(subType))
                                 {
-                                    PdfImageXObject image = new PdfImageXObject(stream);
-                                    byte[] imageBytes = image.GetImageBytes();
-
-                                    // Determine file extension
-                                    string extension = DetermineImageExtension(image);
-
-                                    images.Add(new ImageData
+                                    try
                                     {
-                                        Data = imageBytes,
-                                        FileName = $"pdf_image_{imageIndex}{extension}",
-                                        Index = imageIndex,
-                                        PageNumber = pageNum
-                                    });
+                                        // PdfImageXObject is the correct class to handle PDF image streams
+                                        PdfImageXObject image = new PdfImageXObject(stream);
+                                        byte[] imageBytes = image.GetImageBytes();
 
-                                    imageIndex++;
-                                }
-                                catch (Exception ex)
-                                {
-                                    Console.WriteLine($"Error extracting image on page {pageNum}: {ex.Message}");
+                                        // Determine file extension (assuming this helper method exists)
+                                        string extension = DetermineImageExtension(image);
+
+                                        images.Add(new ImageData
+                                        {
+                                            Data = imageBytes,
+                                            FileName = $"pdf_image_{imageIndex}_{uniqueId}_{extension}",
+                                            Index = imageIndex,
+                                            PageNumber = pageNum
+                                        });
+
+                                        imageIndex++;
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        Console.WriteLine($"Error extracting image '{xObjectName}' on page {pageNum}: {ex.Message}");
+                                    }
                                 }
                             }
                         }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"An error occurred processing the PDF: {ex.Message}");
             }
 
             Console.WriteLine($"Extracted {images.Count} images from PDF");

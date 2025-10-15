@@ -1,15 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using ClickUpDocumentImporter.Helpers;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
 using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
 using iText.Kernel.Pdf.Canvas.Parser.Listener;
 using iText.Kernel.Pdf.Xobject;
-using ClickUpDocumentImporter.Helpers;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.Serialization;
+using System.Text;
+using System.Threading.Tasks;
 
 
 namespace ClickUpDocumentImporter.DocumentConverter
@@ -21,26 +22,35 @@ namespace ClickUpDocumentImporter.DocumentConverter
     {
         public static async Task ConvertWordToClickUpAsync(
             string wordFilePath,
-            string apiToken,
+            HttpClient clickupClient,
             string workspaceId,
-            string parentPageId = null)
+            string wikiId,
+            string listId,
+            string parentPageId = null
+            )
         {
-            var builder = new ClickUpDocumentBuilder(apiToken);
+            var builder = new ClickUpDocumentBuilder(clickupClient);
 
             // Extract images first
             var images = WordImageExtractor.ExtractImagesFromWord(wordFilePath);
+            Console.WriteLine($"~~~~~ Document: {Path.GetFileName(wordFilePath)} ~~~~~");
             Console.WriteLine($"Found {images.Count} images in Word document");
 
             // Build content with text and images
             using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(wordFilePath, false))
             {
+                var formatter = new WordToMarkdownFormatter(wordDoc);
+
                 var body = wordDoc.MainDocumentPart.Document.Body;
                 int currentImageIndex = 0;
 
                 foreach (var element in body.Elements())
                 {
+
                     if (element is Paragraph para)
                     {
+                        formatter.ProcessParagraph(para, builder);
+
                         // Check if paragraph contains an image
                         var drawing = para.Descendants<Drawing>().FirstOrDefault();
 
@@ -50,38 +60,88 @@ namespace ClickUpDocumentImporter.DocumentConverter
                             if (currentImageIndex < images.Count)
                             {
                                 var imageData = images[currentImageIndex];
-                                await builder.AddImageAsync(
+                                await builder.AddImage(
                                     imageData.Data,
                                     imageData.FileName,
-                                    workspaceId
+                                    listId
                                 );
+
                                 Console.WriteLine($"Added image: {imageData.FileName}");
                                 currentImageIndex++;
                             }
                         }
-                        else
+                    }
+                    else if (element is Table table)
+                    {
+                        formatter.ProcessTable(table, builder);
+                    }
+                    // Handle images separately as before
+                    else if (element is Drawing drawing)
+                    {
+                        // This paragraph contains an image
+                        if (currentImageIndex < images.Count)
                         {
-                            // Regular text paragraph
-                            string text = para.InnerText;
-                            if (!string.IsNullOrWhiteSpace(text))
-                            {
-                                // Check if it's a heading
-                                var paragraphProperties = para.ParagraphProperties;
-                                var styleId = paragraphProperties?.ParagraphStyleId?.Val?.Value;
+                            var imageData = images[currentImageIndex];
+                            await builder.AddImage(
+                                imageData.Data,
+                                imageData.FileName,
+                                listId
+                            );
 
-                                if (styleId != null && styleId.StartsWith("Heading"))
-                                {
-                                    int level = int.TryParse(styleId.Replace("Heading", ""), out int l) ? l : 1;
-                                    builder.AddHeading(text, level);
-                                    Console.WriteLine($"Added heading (level {level}): {text}");
-                                }
-                                else
-                                {
-                                    builder.AddParagraph(text);
-                                    Console.WriteLine($"Added paragraph: {text.Substring(0, Math.Min(50, text.Length))}...");
-                                }
-                            }
+                            Console.WriteLine($"Added image: {imageData.FileName}");
+                            currentImageIndex++;
                         }
+
+
+                    //if (element is Paragraph para)
+                    //{
+                    //    // Check if paragraph contains an image
+                    //    var drawing = para.Descendants<Drawing>().FirstOrDefault();
+
+                    //    if (drawing != null)
+                    //    {
+                    //        // This paragraph contains an image
+                    //        if (currentImageIndex < images.Count)
+                    //        {
+                    //            var imageData = images[currentImageIndex];
+                    //            await builder.AddImage(
+                    //                imageData.Data,
+                    //                imageData.FileName,
+                    //                listId
+                    //            );
+                    //            //await builder.AddImageAsync(
+                    //            //    imageData.Data,
+                    //            //    imageData.FileName,
+                    //            //    workspaceId
+                    //            //);
+
+                    //            Console.WriteLine($"Added image: {imageData.FileName}");
+                    //            currentImageIndex++;
+                    //        }
+                    //    }
+                    //    else
+                    //    {
+                    //        // Regular text paragraph
+                    //        string text = para.InnerText;
+                    //        if (!string.IsNullOrWhiteSpace(text))
+                    //        {
+                    //            // Check if it's a heading
+                    //            var paragraphProperties = para.ParagraphProperties;
+                    //            var styleId = paragraphProperties?.ParagraphStyleId?.Val?.Value;
+
+                    //            if (styleId != null && styleId.StartsWith("Heading"))
+                    //            {
+                    //                int level = int.TryParse(styleId.Replace("Heading", ""), out int l) ? l : 1;
+                    //                builder.AddHeading(text, level);
+                    //                Console.WriteLine($"Added heading (level {level}): {text}");
+                    //            }
+                    //            else
+                    //            {
+                    //                builder.AddParagraph(text);
+                    //                Console.WriteLine($"Added paragraph: {text.Substring(0, Math.Min(50, text.Length))}...");
+                    //            }
+                    //        }
+                    //    }
                     }
                 }
             }
@@ -90,8 +150,11 @@ namespace ClickUpDocumentImporter.DocumentConverter
             string pageName = Path.GetFileNameWithoutExtension(wordFilePath);
             string pageId = await builder.CreateAndPopulatePageAsync(
                 workspaceId,
+                wikiId,
                 pageName,
-                parentPageId
+                parentPageId,
+                uploadMethod: "task",
+                listIdForTaskUpload: listId
             );
 
             Console.WriteLine($"\n✓ Created ClickUp page: {pageName} (ID: {pageId})");
@@ -99,11 +162,14 @@ namespace ClickUpDocumentImporter.DocumentConverter
 
         public static async Task ConvertPdfToClickUpAsync(
             string pdfFilePath,
-            string apiToken,
+            HttpClient clickupClient,
             string workspaceId,
-            string parentPageId = null)
+            string wikiId,
+            string listId,
+            string parentPageId = null
+            )
         {
-            var builder = new ClickUpDocumentBuilder(apiToken);
+            var builder = new ClickUpDocumentBuilder(clickupClient);
 
             // Extract images from PDF
             var images = PdfImageExtractor.ExtractImagesFromPdf(pdfFilePath);
@@ -132,11 +198,16 @@ namespace ClickUpDocumentImporter.DocumentConverter
                     var pageImages = images.Where(img => img.PageNumber == pageNum).ToList();
                     foreach (var imageData in pageImages)
                     {
-                        await builder.AddImageAsync(
+                        await builder.AddImage(
                             imageData.Data,
                             imageData.FileName,
-                            workspaceId
+                            listId
                         );
+                        //await builder.AddImageAsync(
+                        //    imageData.Data,
+                        //    imageData.FileName,
+                        //    workspaceId
+                        //);
                         Console.WriteLine($"Added image from page {pageNum}: {imageData.FileName}");
                     }
                 }
@@ -146,8 +217,11 @@ namespace ClickUpDocumentImporter.DocumentConverter
             string pageName = Path.GetFileNameWithoutExtension(pdfFilePath);
             string pageId = await builder.CreateAndPopulatePageAsync(
                 workspaceId,
+                wikiId,
                 pageName,
-                parentPageId
+                parentPageId,
+                uploadMethod: "task",
+                listIdForTaskUpload: listId
             );
 
             Console.WriteLine($"\n✓ Created ClickUp page: {pageName} (ID: {pageId})");

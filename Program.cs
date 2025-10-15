@@ -73,6 +73,7 @@ namespace ClickUpDocumentImporter
         private static readonly string SPACE_ID = "8cgpjr4-40131";
         private static readonly string WIKI_ID = "8cgpjr4-40131";  // Wiki
         private static readonly string PARENT_PAGE_ID = "8cgpjr4-25571"; // Optional: for nesting pages
+        private static readonly string LIST_ID = Globals.CLICKUP_LIST_ID; // List to add images
 
         private static HttpClient clickupClient = new HttpClient();
         private static List<PageInfo> allPages = new List<PageInfo>();
@@ -91,6 +92,12 @@ namespace ClickUpDocumentImporter
 
             var page = PageExtractor.FindPageByName(allPages, addPagesToDoc, caseSensitive: false);
 
+            if (page == null || page.Id == null)
+            {
+                Console.WriteLine($"Page not found for Document Title: {addPagesToDoc}");
+                return;
+            }
+
             string documentsFolder = @"C:\temp\CustomizedScreenLogic";
             var files = Directory.GetFiles(documentsFolder, "*.*")
                 .Where(f => f.EndsWith(".docx") || f.EndsWith(".pdf"))
@@ -100,6 +107,9 @@ namespace ClickUpDocumentImporter
 
             string apiToken = CLICKUP_API_TOKEN;
             string workspaceId = WORKSPACE_ID;
+            string wikiId = WIKI_ID;
+            string parentPageId = page?.Id;
+            string listId = LIST_ID;
             foreach (var file in files)
             {
                 string ext = Path.GetExtension(file).ToLower();
@@ -108,9 +118,11 @@ namespace ClickUpDocumentImporter
                     // *** Convert Word document
                     await CompleteDocumentConverter.ConvertWordToClickUpAsync(
                         file,
-                        apiToken,
+                        clickupClient,
                         workspaceId,
-                        page.Id
+                        wikiId,
+                        listId: listId,
+                        parentPageId: parentPageId
                     );
                 }
                 else if (ext.Equals(".pdf"))
@@ -118,9 +130,11 @@ namespace ClickUpDocumentImporter
                     // *** Convert PDF document
                     await CompleteDocumentConverter.ConvertPdfToClickUpAsync(
                         file,
-                        apiToken,
+                        clickupClient,
                         workspaceId,
-                        page.Id
+                        wikiId,
+                        listId: listId,
+                        parentPageId: parentPageId
                     );
 
                 }
