@@ -99,12 +99,14 @@ namespace ClickUpDocumentImporter.Helpers
         //private readonly string _apiToken;
         private readonly StringBuilder _markdownContent;
         private readonly List<ImageBlock> _pendingImages;
+        //private List<object> contentBlocks; // This should be defined at class level
 
         public ClickUpDocumentBuilder(HttpClient httpClient)
         {
             _httpClient = httpClient;
             _markdownContent = new StringBuilder();
             _pendingImages = new List<ImageBlock>();
+            //contentBlocks = new List<object>(); // Initialize in constructor
         }
 
 
@@ -158,6 +160,38 @@ namespace ClickUpDocumentImporter.Helpers
 
             //_markdownContent.AppendLine(placeholder);
             _markdownContent.AppendLine($"![{fileName}]({imageUrl})");
+            _markdownContent.AppendLine();
+        }
+
+        public void AddBulletPoint(string text)
+        {
+            // Add bullet point formatting
+            //contentBlocks.Add(new { type = "bullet", text = text });
+            _markdownContent.AppendLine($"* {text}");
+            _markdownContent.AppendLine();
+        }
+
+        public void AddNumberedListItem(string text, string number)
+        {
+            // Add numbered list item
+            //contentBlocks.Add(new { type = "numbered", text = text });
+            _markdownContent.AppendLine($"{number} {text}");
+            _markdownContent.AppendLine();
+        }
+
+        public void AddCodeBlock(string text)
+        {
+            // Add code block with language
+            //contentBlocks.Add(new { type = "code", text = code, language = language });
+            _markdownContent.AppendLine($"`{text}`");
+            _markdownContent.AppendLine();
+        }
+
+        public void AddBlockQuote(string text)
+        {
+            // Add block quote
+            //contentBlocks.Add(new { type = "quote", text = text });
+            _markdownContent.AppendLine($"> {text}");
             _markdownContent.AppendLine();
         }
 

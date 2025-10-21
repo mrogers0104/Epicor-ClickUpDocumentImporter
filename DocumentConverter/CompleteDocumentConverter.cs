@@ -160,72 +160,73 @@ namespace ClickUpDocumentImporter.DocumentConverter
             Console.WriteLine($"\n✓ Created ClickUp page: {pageName} (ID: {pageId})");
         }
 
-        public static async Task ConvertPdfToClickUpAsync(
-            string pdfFilePath,
-            HttpClient clickupClient,
-            string workspaceId,
-            string wikiId,
-            string listId,
-            string parentPageId = null
-            )
-        {
-            var builder = new ClickUpDocumentBuilder(clickupClient);
+        //public static async Task ConvertPdfToClickUpAsync(
+        //    string pdfFilePath,
+        //    HttpClient clickupClient,
+        //    string workspaceId,
+        //    string wikiId,
+        //    string listId,
+        //    string parentPageId = null
+        //    )
+        //{
+        //    var builder = new ClickUpDocumentBuilder(clickupClient);
 
-            // Extract images from PDF
-            var images = PdfImageExtractor.ExtractImagesFromPdf(pdfFilePath);
-            Console.WriteLine($"Found {images.Count} images in PDF");
+        //    // Extract images from PDF
+        //    var images = PdfImageExtractor.ExtractImagesFromPdf(pdfFilePath);
+        //    Console.WriteLine($"Found {images.Count} images in PDF");
 
-            // Extract text and structure from PDF
-            using (PdfDocument pdfDoc = new PdfDocument(new PdfReader(pdfFilePath)))
-            {
-                builder.AddHeading(Path.GetFileNameWithoutExtension(pdfFilePath), 1);
+        //    // Extract text and structure from PDF
+        //    using (PdfDocument pdfDoc = new PdfDocument(new PdfReader(pdfFilePath)))
+        //    {
+        //        builder.AddHeading(Path.GetFileNameWithoutExtension(pdfFilePath), 1);
 
-                for (int pageNum = 1; pageNum <= pdfDoc.GetNumberOfPages(); pageNum++)
-                {
-                    var page = pdfDoc.GetPage(pageNum);
+        //        for (int pageNum = 1; pageNum <= pdfDoc.GetNumberOfPages(); pageNum++)
+        //        {
+        //            var page = pdfDoc.GetPage(pageNum);
 
-                    // Extract text
-                    var strategy = new SimpleTextExtractionStrategy();
-                    string pageText = PdfTextExtractor.GetTextFromPage(page, strategy);
+        //            // Extract text
+        //            var strategy = new SimpleTextExtractionStrategy();
+        //            string pageText = PdfTextExtractor.GetTextFromPage(page, strategy);
 
-                    if (!string.IsNullOrWhiteSpace(pageText))
-                    {
-                        builder.AddHeading($"Page {pageNum}", 2);
-                        builder.AddParagraph(pageText);
-                    }
+        //            if (!string.IsNullOrWhiteSpace(pageText))
+        //            {
+        //                builder.AddHeading($"Page {pageNum}", 2);
+        //                builder.AddParagraph(pageText);
+        //            }
 
-                    // Add images from this page
-                    var pageImages = images.Where(img => img.PageNumber == pageNum).ToList();
-                    foreach (var imageData in pageImages)
-                    {
-                        await builder.AddImage(
-                            imageData.Data,
-                            imageData.FileName,
-                            listId
-                        );
-                        //await builder.AddImageAsync(
-                        //    imageData.Data,
-                        //    imageData.FileName,
-                        //    workspaceId
-                        //);
-                        Console.WriteLine($"Added image from page {pageNum}: {imageData.FileName}");
-                    }
-                }
-            }
+        //            // Add images from this page
+        //            var pageImages = images.Where(img => img.PageNumber == pageNum).ToList();
+        //            foreach (var imageData in pageImages)
+        //            {
+        //                await builder.AddImage(
+        //                    imageData.Data,
+        //                    imageData.FileName,
+        //                    listId
+        //                );
+        //                //await builder.AddImageAsync(
+        //                //    imageData.Data,
+        //                //    imageData.FileName,
+        //                //    workspaceId
+        //                //);
+        //                Console.WriteLine($"Added image from page {pageNum}: {imageData.FileName}");
+        //            }
+        //        }
+        //    }
 
-            // Create the ClickUp page
-            string pageName = Path.GetFileNameWithoutExtension(pdfFilePath);
-            string pageId = await builder.CreateAndPopulatePageAsync(
-                workspaceId,
-                wikiId,
-                pageName,
-                parentPageId,
-                uploadMethod: "task",
-                listIdForTaskUpload: listId
-            );
+        //    // Create the ClickUp page
+        //    string pageName = Path.GetFileNameWithoutExtension(pdfFilePath);
+        //    string pageId = await builder.CreateAndPopulatePageAsync(
+        //        workspaceId,
+        //        wikiId,
+        //        pageName,
+        //        parentPageId,
+        //        uploadMethod: "task",
+        //        listIdForTaskUpload: listId
+        //    );
 
-            Console.WriteLine($"\n✓ Created ClickUp page: {pageName} (ID: {pageId})");
-        }
+        //    Console.WriteLine($"\n✓ Created ClickUp page: {pageName} (ID: {pageId})");
+        //}
+
     }
 
     //// ===== SIMPLE USAGE EXAMPLES =====

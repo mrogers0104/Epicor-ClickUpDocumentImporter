@@ -128,7 +128,7 @@ namespace ClickUpDocumentImporter
                 else if (ext.Equals(".pdf"))
                 {
                     // *** Convert PDF document
-                    await CompleteDocumentConverter.ConvertPdfToClickUpAsync(
+                    await PdfToClickUp.ConvertPdfToClickUpAsync( // CompleteDocumentConverter.ConvertPdfToClickUpAsync(
                         file,
                         clickupClient,
                         workspaceId,

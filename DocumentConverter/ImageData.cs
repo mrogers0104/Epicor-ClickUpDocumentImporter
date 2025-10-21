@@ -14,5 +14,12 @@ namespace ClickUpDocumentImporter.DocumentConverter
         public int Index { get; set; }
         public string ContentType { get; set; }
         public int? PageNumber { get; set; } // For PDF images
+
+        // position properties
+        public float X { get; set; }
+        public float Y { get; set; }
+        public float Width { get; set; }
+        public float Height { get; set; }
+
     }
 }
