@@ -167,7 +167,9 @@ namespace ClickUpDocumentImporter.Helpers
         {
             // Add bullet point formatting
             //contentBlocks.Add(new { type = "bullet", text = text });
-            _markdownContent.AppendLine($"* {text}");
+            string txt = text.Replace("o", ""); // Remove leading "o " if present
+
+            _markdownContent.AppendLine($"* {txt.Trim()}");
             _markdownContent.AppendLine();
         }
 
@@ -340,13 +342,13 @@ namespace ClickUpDocumentImporter.Helpers
             };
         }
 
-        // OPTION 2: Convert image to base64 data URI (works for small images)
-        private string ConvertImageToDataUri(byte[] imageData, string fileName)
-        {
-            string contentType = GetContentType(fileName);
-            string base64 = Convert.ToBase64String(imageData);
-            return $"data:{contentType};base64,{base64}";
-        }
+        //// OPTION 2: Convert image to base64 data URI (works for small images)
+        //private string ConvertImageToDataUri(byte[] imageData, string fileName)
+        //{
+        //    string contentType = GetContentType(fileName);
+        //    string base64 = Convert.ToBase64String(imageData);
+        //    return $"data:{contentType};base64,{base64}";
+        //}
 
         // Create page with markdown content, then upload images and update
         // Set uploadMethod: "base64" (default), "task" (uses task attachment workaround), or "external" (needs implementation)

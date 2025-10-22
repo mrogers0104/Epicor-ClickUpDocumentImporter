@@ -28,5 +28,10 @@ namespace ClickUpDocumentImporter.DocumentConverter
         public string CodeLanguage { get; set; }
         public string Color { get; set; }
 
+
+        public override string ToString()
+        {
+            return $"({X}, {Y}) [({FontSize}){FontName}] Text: {Text}";
+        }
     }
 }

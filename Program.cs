@@ -110,7 +110,7 @@ namespace ClickUpDocumentImporter
             string wikiId = WIKI_ID;
             string parentPageId = page?.Id;
             string listId = LIST_ID;
-            foreach (var file in files)
+             foreach (var file in files)
             {
                 string ext = Path.GetExtension(file).ToLower();
                 if (ext.Equals(".docx"))

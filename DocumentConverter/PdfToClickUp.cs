@@ -331,13 +331,13 @@ namespace ClickUpDocumentImporter.DocumentConverter
             var builder = new ClickUpDocumentBuilder(clickupClient);
 
             // Extract images from PDF with position information
-            //var images = PdfImageExtractor.ExtractImagesFromPdf(pdfFilePath);
             var images = ExtractImagesFromPdf(pdfFilePath);
+            //var images = PdfImageExtractor.ExtractImagesFromPdf(pdfFilePath);
             Console.WriteLine($"Found {images.Count} images in PDF");
 
             using (PdfDocument pdfDoc = new PdfDocument(new PdfReader(pdfFilePath)))
             {
-                builder.AddHeading(Path.GetFileNameWithoutExtension(pdfFilePath), 1);
+                //builder.AddHeading(Path.GetFileNameWithoutExtension(pdfFilePath), 1);
 
                 for (int pageNum = 1; pageNum <= pdfDoc.GetNumberOfPages(); pageNum++)
                 {
@@ -356,8 +356,13 @@ namespace ClickUpDocumentImporter.DocumentConverter
 
                     //builder.AddHeading($"Page {pageNum}", 2);
 
-                    // Merge text and images based on vertical position
-                    await MergeFormattedContentByPosition(builder, formattedBlocks, pageImages, listId);
+                    // Use the new formatter to convert to markdown
+                    var formatter = new PdfToMarkdownFormatter(builder, listId);
+                    await formatter.FormatAndAddContent(formattedBlocks, pageImages);
+
+                    //// Merge text and images based on vertical position
+                    //await MergeFormattedContentByPosition(builder, formattedBlocks, pageImages, listId);
+
                 }
             }
 
@@ -374,6 +379,63 @@ namespace ClickUpDocumentImporter.DocumentConverter
 
             Console.WriteLine($"\n✓ Created ClickUp page: {pageName} (ID: {pageId})");
         }
+
+
+        //public static async Task ConvertPdfToClickUpAsync(
+        //    string pdfFilePath,
+        //    HttpClient clickupClient,
+        //    string workspaceId,
+        //    string wikiId,
+        //    string listId,
+        //    string parentPageId = null
+        //)
+        //{
+        //    var builder = new ClickUpDocumentBuilder(clickupClient);
+
+        //    // Extract images from PDF with position information
+        //    //var images = PdfImageExtractor.ExtractImagesFromPdf(pdfFilePath);
+        //    var images = ExtractImagesFromPdf(pdfFilePath);
+        //    Console.WriteLine($"Found {images.Count} images in PDF");
+
+        //    using (PdfDocument pdfDoc = new PdfDocument(new PdfReader(pdfFilePath)))
+        //    {
+        //        //builder.AddHeading(Path.GetFileNameWithoutExtension(pdfFilePath), 1);
+
+        //        for (int pageNum = 1; pageNum <= pdfDoc.GetNumberOfPages(); pageNum++)
+        //        {
+        //            var page = pdfDoc.GetPage(pageNum);
+
+        //            // Extract formatted text blocks with positional information
+        //            var formattedBlocks = ExtractFormattedTextBlocks(page);
+
+        //            // Get images for this page with positions
+        //            var pageImages = images.Where(img => img.PageNumber == pageNum)
+        //                                   .OrderBy(img => img.Y)
+        //                                   .ToList();
+
+        //            if (formattedBlocks.Count == 0 && pageImages.Count == 0)
+        //                continue;
+
+        //            //builder.AddHeading($"Page {pageNum}", 2);
+
+        //            // Merge text and images based on vertical position
+        //            await MergeFormattedContentByPosition(builder, formattedBlocks, pageImages, listId);
+        //        }
+        //    }
+
+        //    // Create the ClickUp page
+        //    string pageName = Path.GetFileNameWithoutExtension(pdfFilePath);
+        //    string pageId = await builder.CreateAndPopulatePageAsync(
+        //        workspaceId,
+        //        wikiId,
+        //        pageName,
+        //        parentPageId,
+        //        uploadMethod: "task",
+        //        listIdForTaskUpload: listId
+        //    );
+
+        //    Console.WriteLine($"\n✓ Created ClickUp page: {pageName} (ID: {pageId})");
+        //}
 
         private static List<FormattedTextBlock> ExtractFormattedTextBlocks(PdfPage page)
         {
