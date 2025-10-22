@@ -59,7 +59,7 @@ namespace ClickUpDocumentImporter
     ///
     ///  REQUIRED NUGET PACKAGES
     ///     * Install-Package DocumentFormat.OpenXml
-    ///     * Install-Package itext7
+    ///     * Install-Package itext
     ///     * Install-Package System.Text.Json
     /// </remarks>
     internal class Program
