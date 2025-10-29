@@ -76,7 +76,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
                         item.ImageData.FileName,
                         _listId
                     );
-                    Console.WriteLine($"Added image at position {item.Position:F2}: {item.ImageData.FileName}");
+                    ConsoleHelper.WriteInfo($"Added image at position {item.Position:F2}: {item.ImageData.FileName}");
                 }
                 else if (item.Type == ContentType.Text)
                 {

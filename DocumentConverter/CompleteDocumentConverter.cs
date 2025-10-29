@@ -33,8 +33,10 @@ namespace ClickUpDocumentImporter.DocumentConverter
 
             // Extract images first
             var images = WordImageExtractor.ExtractImagesFromWord(wordFilePath);
-            Console.WriteLine($"~~~~~ Document: {Path.GetFileName(wordFilePath)} ~~~~~");
-            Console.WriteLine($"Found {images.Count} images in Word document");
+
+            ConsoleHelper.WriteSeparator();
+            ConsoleHelper.WriteInfo($"~~~~~ Document: {Path.GetFileName(wordFilePath)} ~~~~~");
+            ConsoleHelper.WriteInfo($"Found {images.Count} images in Word document");
 
             // Build content with text and images
             using (WordprocessingDocument wordDoc = WordprocessingDocument.Open(wordFilePath, false))
@@ -88,7 +90,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
                                 listId
                             );
 
-                            Console.WriteLine($"Added image: {imageData.FileName}");
+                            ConsoleHelper.WriteInfo($"Added image: {imageData.FileName}");
                             currentImageIndex++;
                         }
 
@@ -157,7 +159,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 listIdForTaskUpload: listId
             );
 
-            Console.WriteLine($"\n✓ Created ClickUp page: {pageName} (ID: {pageId})");
+            ConsoleHelper.WriteInfo($"\n✓ Created ClickUp page: {pageName} (ID: {pageId})");
         }
 
         //public static async Task ConvertPdfToClickUpAsync(

@@ -32,7 +32,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 if (!string.IsNullOrWhiteSpace(text))
                 {
                     builder.AddHeading(text, level);
-                    Console.WriteLine($"Added heading (level {level}): {text}");
+                    ConsoleHelper.WriteInfo($"Added heading (level {level}): {text}");
                 }
                 return;
             }
@@ -52,7 +52,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
                     string prefix = isOrdered ? "1. " : "- ";
 
                     builder.AddMarkdown($"{indent}{prefix}{text}");
-                    Console.WriteLine($"Added list item: {text}");
+                    ConsoleHelper.WriteInfo($"Added list item: {text}");
                 }
                 return;
             }
@@ -64,7 +64,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 if (!string.IsNullOrWhiteSpace(text))
                 {
                     builder.AddBlockquote(text);
-                    Console.WriteLine($"Added blockquote: {text}");
+                    ConsoleHelper.WriteInfo($"Added blockquote: {text}");
                 }
                 return;
             }
@@ -76,7 +76,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 if (!string.IsNullOrWhiteSpace(text))
                 {
                     builder.AddCodeBlock(text);
-                    Console.WriteLine($"Added code block: {text}");
+                    ConsoleHelper.WriteInfo($"Added code block: {text}");
                 }
                 return;
             }
@@ -85,7 +85,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
             if (HasBottomBorder(paragraphProperties) && string.IsNullOrWhiteSpace(para.InnerText))
             {
                 builder.AddHorizontalRule();
-                Console.WriteLine("Added horizontal rule");
+                ConsoleHelper.WriteInfo("Added horizontal rule");
                 return;
             }
 
@@ -94,7 +94,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
             if (!string.IsNullOrWhiteSpace(formattedText))
             {
                 builder.AddParagraph(formattedText);
-                Console.WriteLine($"Added paragraph: {formattedText.Substring(0, Math.Min(50, formattedText.Length))}...");
+                ConsoleHelper.WriteInfo($"Added paragraph: {formattedText.Substring(0, Math.Min(50, formattedText.Length))}...");
             }
         }
 
@@ -404,7 +404,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
 
             markdown.AppendLine(); // Blank line after table
             builder.AddMarkdown(markdown.ToString());
-            Console.WriteLine($"Added table with {rows.Count} rows");
+            ConsoleHelper.WriteInfo($"Added table with {rows.Count} rows");
         }
     }
 

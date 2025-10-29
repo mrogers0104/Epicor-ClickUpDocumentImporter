@@ -333,7 +333,11 @@ namespace ClickUpDocumentImporter.DocumentConverter
             // Extract images from PDF with position information
             var images = ExtractImagesFromPdf(pdfFilePath);
             //var images = PdfImageExtractor.ExtractImagesFromPdf(pdfFilePath);
-            Console.WriteLine($"Found {images.Count} images in PDF");
+
+
+            ConsoleHelper.WriteSeparator();
+            ConsoleHelper.WriteInfo($"~~~~~ PDF: {Path.GetFileName(pdfFilePath)} ~~~~~");
+            ConsoleHelper.WriteInfo($"Found {images.Count} images in PDF");
 
             using (PdfDocument pdfDoc = new PdfDocument(new PdfReader(pdfFilePath)))
             {
@@ -444,148 +448,148 @@ namespace ClickUpDocumentImporter.DocumentConverter
             return strategy.GetFormattedBlocks();
         }
 
-        private static async Task MergeFormattedContentByPosition(
-            ClickUpDocumentBuilder builder,
-            List<FormattedTextBlock> textBlocks,
-            List<ImageData> images,
-            string listId)
-        {
-            // Combine text blocks and images into a unified list with positions
-            var contentItems = new List<FormattedContentItem>();
+        //private static async Task MergeFormattedContentByPosition(
+        //    ClickUpDocumentBuilder builder,
+        //    List<FormattedTextBlock> textBlocks,
+        //    List<ImageData> images,
+        //    string listId)
+        //{
+        //    // Combine text blocks and images into a unified list with positions
+        //    var contentItems = new List<FormattedContentItem>();
 
-            // Add text blocks
-            foreach (var block in textBlocks)
-            {
-                contentItems.Add(new FormattedContentItem
-                {
-                    Type = FormattedContentType.Text,
-                    Position = block.Y,
-                    TextBlock = block
-                });
-            }
+        //    // Add text blocks
+        //    foreach (var block in textBlocks)
+        //    {
+        //        contentItems.Add(new FormattedContentItem
+        //        {
+        //            Type = FormattedContentType.Text,
+        //            Position = block.Y,
+        //            TextBlock = block
+        //        });
+        //    }
 
-            // Add images
-            foreach (var image in images)
-            {
-                contentItems.Add(new FormattedContentItem
-                {
-                    Type = FormattedContentType.Image,
-                    Position = image.Y,
-                    ImageData = image
-                });
-            }
+        //    // Add images
+        //    foreach (var image in images)
+        //    {
+        //        contentItems.Add(new FormattedContentItem
+        //        {
+        //            Type = FormattedContentType.Image,
+        //            Position = image.Y,
+        //            ImageData = image
+        //        });
+        //    }
 
-            // Sort by vertical position (top to bottom)
-            contentItems = contentItems.OrderByDescending(c => c.Position).ToList();
+        //    // Sort by vertical position (top to bottom)
+        //    contentItems = contentItems.OrderByDescending(c => c.Position).ToList();
 
-            // Add content in order with proper formatting
-            foreach (var item in contentItems)
-            {
-                if (item.Type == FormattedContentType.Text)
-                {
-                    var block = item.TextBlock;
+        //    // Add content in order with proper formatting
+        //    foreach (var item in contentItems)
+        //    {
+        //        if (item.Type == FormattedContentType.Text)
+        //        {
+        //            var block = item.TextBlock;
 
-                    if (string.IsNullOrWhiteSpace(block.Text))
-                        continue;
+        //            if (string.IsNullOrWhiteSpace(block.Text))
+        //                continue;
 
-                    // Convert to markdown based on formatting
-                    string markdownText = ConvertToMarkdown(block);
+        //            // Convert to markdown based on formatting
+        //            string markdownText = ConvertToMarkdown(block);
 
-                    // Determine block type and add accordingly
-                    if (block.IsHeading)
-                    {
-                        int headingLevel = DetermineHeadingLevel(block);
-                        builder.AddHeading(block.Text.Trim(), Math.Min(headingLevel + 2, 6)); // +2 because page is already h2
-                    }
-                    else if (block.IsBulletPoint)
-                    {
-                        builder.AddBulletPoint(markdownText);
-                    }
-                    else if (block.IsNumberedList)
-                    {
-                        builder.AddNumberedListItem("1.", markdownText);
-                    }
-                    else if (block.IsCodeBlock)
-                    {
-                        builder.AddCodeBlock(block.Text, block.CodeLanguage ?? "");
-                    }
-                    else if (block.IsBlockQuote)
-                    {
-                        builder.AddBlockQuote(markdownText);
-                    }
-                    else
-                    {
-                        builder.AddParagraph(markdownText);
-                    }
-                }
-                else if (item.Type == FormattedContentType.Image)
-                {
-                    await builder.AddImage(
-                        item.ImageData.Data,
-                        item.ImageData.FileName,
-                        listId
-                    );
-                    Console.WriteLine($"Added image at position {item.Position:F2}: {item.ImageData.FileName}");
-                }
-            }
-        }
+        //            // Determine block type and add accordingly
+        //            if (block.IsHeading)
+        //            {
+        //                int headingLevel = DetermineHeadingLevel(block);
+        //                builder.AddHeading(block.Text.Trim(), Math.Min(headingLevel + 2, 6)); // +2 because page is already h2
+        //            }
+        //            else if (block.IsBulletPoint)
+        //            {
+        //                builder.AddBulletPoint(markdownText);
+        //            }
+        //            else if (block.IsNumberedList)
+        //            {
+        //                builder.AddNumberedListItem("1.", markdownText);
+        //            }
+        //            else if (block.IsCodeBlock)
+        //            {
+        //                builder.AddCodeBlock(block.Text, block.CodeLanguage ?? "");
+        //            }
+        //            else if (block.IsBlockQuote)
+        //            {
+        //                builder.AddBlockQuote(markdownText);
+        //            }
+        //            else
+        //            {
+        //                builder.AddParagraph(markdownText);
+        //            }
+        //        }
+        //        else if (item.Type == FormattedContentType.Image)
+        //        {
+        //            await builder.AddImage(
+        //                item.ImageData.Data,
+        //                item.ImageData.FileName,
+        //                listId
+        //            );
+        //            Console.WriteLine($"Added image at position {item.Position:F2}: {item.ImageData.FileName}");
+        //        }
+        //    }
+        //}
 
-        private static string ConvertToMarkdown(FormattedTextBlock block)
-        {
-            string text = block.Text;
+        //private static string ConvertToMarkdown(FormattedTextBlock block)
+        //{
+        //    string text = block.Text;
 
-            // Apply inline formatting
-            if (block.IsBold && !block.IsItalic)
-            {
-                text = $"**{text}**";
-            }
-            else if (block.IsItalic && !block.IsBold)
-            {
-                text = $"*{text}*";
-            }
-            else if (block.IsBold && block.IsItalic)
-            {
-                text = $"***{text}***";
-            }
+        //    // Apply inline formatting
+        //    if (block.IsBold && !block.IsItalic)
+        //    {
+        //        text = $"**{text}**";
+        //    }
+        //    else if (block.IsItalic && !block.IsBold)
+        //    {
+        //        text = $"*{text}*";
+        //    }
+        //    else if (block.IsBold && block.IsItalic)
+        //    {
+        //        text = $"***{text}***";
+        //    }
 
-            if (block.IsUnderlined)
-            {
-                // ClickUp supports underline with HTML
-                text = $"<u>{text}</u>";
-            }
+        //    if (block.IsUnderlined)
+        //    {
+        //        // ClickUp supports underline with HTML
+        //        text = $"<u>{text}</u>";
+        //    }
 
-            if (block.IsStrikethrough)
-            {
-                text = $"~~{text}~~";
-            }
+        //    if (block.IsStrikethrough)
+        //    {
+        //        text = $"~~{text}~~";
+        //    }
 
-            if (block.IsCode)
-            {
-                text = $"`{text}`";
-            }
+        //    if (block.IsCode)
+        //    {
+        //        text = $"`{text}`";
+        //    }
 
-            if (block.IsLink)
-            {
-                text = $"[{text}]({block.LinkUrl})";
-            }
+        //    if (block.IsLink)
+        //    {
+        //        text = $"[{text}]({block.LinkUrl})";
+        //    }
 
-            return text;
-        }
+        //    return text;
+        //}
 
-        private static int DetermineHeadingLevel(FormattedTextBlock block)
-        {
-            // Determine heading level based on font size
-            if (block.FontSize >= 24)
-                return 1;
-            else if (block.FontSize >= 20)
-                return 2;
-            else if (block.FontSize >= 16)
-                return 3;
-            else if (block.FontSize >= 14)
-                return 4;
-            else
-                return 5;
-        }
+        //private static int DetermineHeadingLevel(FormattedTextBlock block)
+        //{
+        //    // Determine heading level based on font size
+        //    if (block.FontSize >= 24)
+        //        return 1;
+        //    else if (block.FontSize >= 20)
+        //        return 2;
+        //    else if (block.FontSize >= 16)
+        //        return 3;
+        //    else if (block.FontSize >= 14)
+        //        return 4;
+        //    else
+        //        return 5;
+        //}
 
         // Helper classes
         //private class FormattedTextBlock
@@ -673,7 +677,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
                             }
                             catch (Exception ex)
                             {
-                                Console.WriteLine($"Error extracting image on page {pageNum}: {ex.Message}");
+                                ConsoleHelper.WriteError($"Error extracting image on page {pageNum}: {ex.Message}");
                             }
                         }
                     }
@@ -681,10 +685,10 @@ namespace ClickUpDocumentImporter.DocumentConverter
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"An error occurred processing the PDF: {ex.Message}");
+                ConsoleHelper.WriteError($"An error occurred processing the PDF: {ex.Message}");
             }
 
-            Console.WriteLine($"Extracted {images.Count} images from PDF");
+            ConsoleHelper.WriteInfo($"Extracted {images.Count} images from PDF");
             return images;
         }
 

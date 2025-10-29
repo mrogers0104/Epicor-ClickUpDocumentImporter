@@ -370,8 +370,8 @@ namespace ClickUpDocumentImporter.Helpers
             }
 
             var jsonString = createPayload.ToJsonString();
-            Console.WriteLine($"Creating Page - Request URL: https://api.clickup.com/api/v3/workspaces/{workspaceId}/docs/{docId}/pages");
-            Console.WriteLine($"Request Body (first 500 chars): {jsonString.Substring(0, Math.Min(500, jsonString.Length))}...");
+            ConsoleHelper.LogInformation($"Creating Page - Request URL: https://api.clickup.com/api/v3/workspaces/{workspaceId}/docs/{docId}/pages");
+            ConsoleHelper.LogInformation($"Request Body (first 500 chars): {jsonString.Substring(0, Math.Min(500, jsonString.Length))}...");
 
             var content = new StringContent(jsonString, Encoding.UTF8, "application/json");
 
@@ -391,7 +391,7 @@ namespace ClickUpDocumentImporter.Helpers
             var result = JsonSerializer.Deserialize<JsonNode>(responseJson);
             var pageId = result["id"].GetValue<string>();
 
-            Console.WriteLine($"Created page: {pageName} (ID: {pageId})");
+            ConsoleHelper.WriteInfo($"Created page: {pageName} (ID: {pageId})");
 
             //// Step 2: Process images based on upload method
             //string updatedMarkdown = markdownText;
