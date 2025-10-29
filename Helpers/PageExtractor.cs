@@ -145,6 +145,27 @@ namespace ClickUpDocumentImporter.Helpers
                 }
             }
         }
+
+        // Helper method to print hierarchy
+        public static void ExtractPageHierarchy(List<PageInfo> pages, List<SelectionItem> selectionItems, int indent = 0)
+        {
+            foreach (var page in pages)
+            {
+                //Console.WriteLine($"{new string(' ', indent * 2)}- {page.Name} (ID: {page.Id}, Parent: {page.ParentPageId ?? "null"})");
+                selectionItems.Add(new SelectionItem
+                {
+                    Text = $"{new string(' ', indent * 2)}- {page.Name} (ID: {page.Id}, Parent: {page.ParentPageId ?? "null"})",
+                    Value = page.Name,
+                    IsSelected = false
+                });
+
+                //Console.WriteLine($"{new string(' ', indent * 2)}- {page.Name} (ID: {page.Id}, Parent: {page.ParentPageId ?? "null"})");
+                if (page.Pages.Count > 0)
+                {
+                    ExtractPageHierarchy(page.Pages, selectionItems, indent + 1);
+                }
+            }
+        }
     }
 }
 

@@ -80,37 +80,60 @@ namespace ClickUpDocumentImporter
         private static int imageCounter = 0;
         private static readonly string addPagesToDoc = "Screen Logic Customization"; // Page to add Documents
 
+#if DEBUG
+        private static string documentsFolder = @"C:\temp\CustomizedScreenLogic";
+#else
+        private static string documentsFolder = @"C:\temp\";
+#endif
+
         static async Task Main(string[] args)
         {
-            // Configure HTTP clickupClient
-            //clickupClient.DefaultRequestHeaders.Add("Authorization", CLICKUP_API_TOKEN);
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            ConsoleHelper.WriteHeader($"S T A R T: Import Documents to ClickUp  [v{version}]");
+            ConsoleHelper.WriteBlank();
+
+            // *** User must enter the directory to the documents to be imported to ClickUp
+            if (args.Length <= 0)
+            {
+                var found = EnterDocumentDirectory();
+                if (!found)
+                {
+                    return;
+                }
+            }
+
+            // *** Configure HTTP clickupClient
             var client = new ClickUpClient();
             clickupClient = client.ClickUpHttpClient;
 
-            // Optional: List all pages in your space first to see structure
-            await ListPagesInSpace();
+            // *** List all pages in your space to select parent page
+            var selectionList = await ListPagesInSpace();
 
-            var page = PageExtractor.FindPageByName(allPages, addPagesToDoc, caseSensitive: false);
+            var selectedPageName = GetPageSelection(selectionList);
+
+            //var page = PageExtractor.FindPageByName(allPages, addPagesToDoc, caseSensitive: false);
+            var page = PageExtractor.FindPageByName(allPages, selectedPageName, caseSensitive: false);
 
             if (page == null || page.Id == null)
             {
-                Console.WriteLine($"Page not found for Document Title: {addPagesToDoc}");
+                //Console.WriteLine($"Page not found for Document Title: {addPagesToDoc}");
+                ConsoleHelper.WriteError($"Page not found for Document Title: {addPagesToDoc}");
                 return;
             }
 
-            string documentsFolder = @"C:\temp\CustomizedScreenLogic";
             var files = Directory.GetFiles(documentsFolder, "*.*")
                 .Where(f => f.EndsWith(".docx") || f.EndsWith(".pdf"))
                 .ToArray();
 
-            Console.WriteLine($"Found {files.Length} documents to import");
+            //Console.WriteLine($"Found {files.Length} documents to import");
+            ConsoleHelper.WriteInfo($"Found {files.Length} documents to import");
 
             string apiToken = CLICKUP_API_TOKEN;
             string workspaceId = WORKSPACE_ID;
             string wikiId = WIKI_ID;
             string parentPageId = page?.Id;
             string listId = LIST_ID;
-             foreach (var file in files)
+            foreach (var file in files)
             {
                 string ext = Path.GetExtension(file).ToLower();
                 if (ext.Equals(".docx"))
@@ -164,7 +187,64 @@ namespace ClickUpDocumentImporter
             //    }
             //}
 
-            Console.WriteLine("\nImport complete!");
+            //Console.WriteLine("\nImport complete!");
+
+            ConsoleHelper.WriteLogPath();
+            ConsoleHelper.WriteSeparator();
+            ConsoleHelper.WriteSuccess("\nImport complete!");
+            ConsoleHelper.Pause();
+        }
+
+        static bool EnterDocumentDirectory()
+        {
+            string directoryFolder = string.Empty;
+
+            while (string.IsNullOrEmpty(directoryFolder))
+            {
+                string input = ConsoleHelper.AskQuestion("Enter document directory path", documentsFolder);
+
+                if (Directory.Exists(input))
+                {
+                    directoryFolder = input;
+                    ConsoleHelper.WriteSuccess($"Directory found: {directoryFolder}");
+                }
+                else
+                {
+                    ConsoleHelper.WriteWarning($"Directory does not exist: {input}");
+
+                    if (!ConsoleHelper.AskYesNo("Would you like to enter the directory?", true))
+                    {
+                        ConsoleHelper.WriteWarning("Run terminated.");
+                        return false;
+                    }
+                }
+            }
+            documentsFolder = directoryFolder;
+            return true;
+        }
+
+        static string GetPageSelection(List<SelectionItem> items)
+        {
+            ConsoleHelper.WriteHeader("Select top level (parent) page");
+            //ConsoleHelper.WriteSeparator();
+
+            ConsoleHelper.WriteInfo("Use Arrow Keys to navigate, <ENTER> to select, <ESC> to cancel");
+            //ConsoleHelper.WriteSeparator();
+
+            var selected = ConsoleHelper.SelectFromList(items, "Please select parent page:", 2);
+
+            if (selected != null)
+            {
+                ConsoleHelper.WriteSeparator();
+                ConsoleHelper.WriteSuccess($"You selected: {selected.Value}");
+                return (string) selected.Value;
+            }
+            else
+            {
+                ConsoleHelper.WriteWarning("Selection was cancelled");
+                return string.Empty;
+            }
+
         }
 
         static (string content, List<ImageInfo> images) ExtractContentWithImages(string filePath)
@@ -524,9 +604,10 @@ namespace ClickUpDocumentImporter
             }
         }
 
-        static async Task ListPagesInSpace()
+        static async Task<List<SelectionItem>> ListPagesInSpace()
         {
-            Console.WriteLine("Fetching pages in Wiki...\n");
+            //Console.WriteLine("Fetching pages in Wiki...\n");
+            ConsoleHelper.LogInformation("Fetching pages in Wiki...\n");
 
             var response = await clickupClient.GetAsync(
                 $"https://api.clickup.com/api/v3/workspaces/{WORKSPACE_ID}/docs/{WIKI_ID}/pages"
@@ -539,11 +620,14 @@ namespace ClickUpDocumentImporter
                 var pages = PageExtractor.ExtractPages(json);
                 allPages = pages;
 
-                // Print hierarchical structure
-                Console.WriteLine("Hierarchical Structure:");
-                PageExtractor.PrintHierarchy(pages);
+                //// Print hierarchical structure
+                //Console.WriteLine("Hierarchical Structure:");
+                //PageExtractor.PrintHierarchy(pages);
 
-                Console.WriteLine("\n---\n");
+                var selectionItems = new List<SelectionItem>();
+                PageExtractor.ExtractPageHierarchy(pages, selectionItems);
+
+                //Console.WriteLine("\n---\n");
 
                 //// Or flatten if you need a simple list
                 //var flatPages = PageExtractor.FlattenPages(pages);
@@ -553,8 +637,12 @@ namespace ClickUpDocumentImporter
                 //    Console.WriteLine($"- {page.Name} (ID: {page.Id}, Parent: {page.ParentPageId ?? "null"})");
                 //}
 
-                Console.WriteLine();
+                //Console.WriteLine();
+
+                return selectionItems;
             }
+
+            return [];
         }
     }
 }
