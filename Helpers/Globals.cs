@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
+using System.Transactions;
 
 namespace ClickUpDocumentImporter.Helpers
 {
@@ -61,6 +62,29 @@ namespace ClickUpDocumentImporter.Helpers
             // Example: "j0gW4e"
 
             return id;
+        }
+
+
+        /// <summary>
+        /// Convert image EMU's to inch.
+        /// Where EMU = English Metric Units.
+        /// </summary>
+        /// <param name="emu"></param>
+        /// <returns></returns>
+        public static float ConvertEMUtoInch(this long emu)
+        {
+            return (float)(emu / 914400.0);
+        }
+
+        /// <summary>
+        /// Convert image EMU's to pixels.
+        /// Where EMU = English Metric Units.
+        /// </summary>
+        /// <param name="emu"></param>
+        /// <returns></returns>
+        public static float ConvertEMUtoPixels(this long emu)
+        {
+            return (float)(emu / 9525.0);
         }
 
         #endregion  --------------- Methods ---------------

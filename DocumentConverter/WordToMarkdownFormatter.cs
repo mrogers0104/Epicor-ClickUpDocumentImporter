@@ -1,28 +1,269 @@
-﻿using ClickUpDocumentImporter.Helpers;
-using DocumentFormat.OpenXml.Packaging;
-using DocumentFormat.OpenXml.Wordprocessing;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ClickUpDocumentImporter.Helpers;
+using DocumentFormat.OpenXml.Packaging;
+using DocumentFormat.OpenXml.Wordprocessing;
+using W = DocumentFormat.OpenXml.Wordprocessing;
 
 namespace ClickUpDocumentImporter.DocumentConverter
 {
     public class WordToMarkdownFormatter
     {
         private readonly WordprocessingDocument _wordDoc;
+        private Dictionary<string, int> _listCounters; // Track list item numbers
+        private int _previousListLevel = -1; // Track previous list level for reset logic
 
         public WordToMarkdownFormatter(WordprocessingDocument wordDoc)
         {
             _wordDoc = wordDoc;
+            _listCounters = new Dictionary<string, int>();
+            _previousListLevel = -1;
         }
+
+        //public void ProcessParagraph(Paragraph para, ClickUpDocumentBuilder builder)
+        //{
+        //    var paragraphProperties = para.ParagraphProperties;
+        //    var styleId = paragraphProperties?.ParagraphStyleId?.Val?.Value;
+        //    var numProperties = paragraphProperties?.NumberingProperties;
+
+        //    // Check if it's a heading
+        //    if (styleId != null && styleId.StartsWith("Heading"))
+        //    {
+        //        int level = int.TryParse(styleId.Replace("Heading", ""), out int l) ? Math.Min(l, 6) : 1;
+        //        string text = ExtractFormattedText(para);
+        //        if (!string.IsNullOrWhiteSpace(text))
+        //        {
+        //            builder.AddHeading(text, level);
+        //            ConsoleHelper.WriteInfo($"Added heading (level {level}): {text}");
+        //        }
+        //        return;
+        //    }
+
+        //    // Check if it's a list item
+        //    if (numProperties != null)
+        //    {
+        //        string text = ExtractFormattedText(para);
+        //        if (!string.IsNullOrWhiteSpace(text))
+        //        {
+        //            var numId = numProperties.NumberingId?.Val?.Value ?? 0;
+        //            var ilvl = numProperties.NumberingLevelReference?.Val?.Value ?? 0;
+
+        //            // Get numbering format to determine bullet vs numbered
+        //            bool isOrdered = IsOrderedList(numId, ilvl);
+        //            string indent = new string(' ', (int)ilvl * 2);
+        //            string prefix = isOrdered ? "1. " : "- ";
+
+        //            builder.AddMarkdown($"{indent}{prefix}{text}");
+        //            ConsoleHelper.WriteInfo($"Added list item: {text}");
+        //        }
+        //        return;
+        //    }
+
+        //    // Check if it's a blockquote (typically styled as "Quote" or "IntenseQuote")
+        //    if (styleId != null && (styleId.Contains("Quote") || styleId.Contains("Emphasis")))
+        //    {
+        //        string text = ExtractFormattedText(para);
+        //        if (!string.IsNullOrWhiteSpace(text))
+        //        {
+        //            builder.AddBlockquote(text);
+        //            ConsoleHelper.WriteInfo($"Added blockquote: {text}");
+        //        }
+        //        return;
+        //    }
+
+        //    // Check for code block (typically styled as "Code" or "HTMLCode")
+        //    if (styleId != null && styleId.Contains("Code"))
+        //    {
+        //        string text = para.InnerText;
+        //        if (!string.IsNullOrWhiteSpace(text))
+        //        {
+        //            builder.AddCodeBlock(text);
+        //            ConsoleHelper.WriteInfo($"Added code block: {text}");
+        //        }
+        //        return;
+        //    }
+
+        //    // Check for horizontal rule (empty paragraph with border)
+        //    if (HasBottomBorder(paragraphProperties) && string.IsNullOrWhiteSpace(para.InnerText))
+        //    {
+        //        builder.AddHorizontalRule();
+        //        ConsoleHelper.WriteInfo("Added horizontal rule");
+        //        return;
+        //    }
+
+        //    // Regular paragraph with inline formatting
+        //    string formattedText = ExtractFormattedText(para);
+        //    if (!string.IsNullOrWhiteSpace(formattedText))
+        //    {
+        //        builder.AddParagraph(formattedText);
+        //        ConsoleHelper.WriteInfo($"Added paragraph: {formattedText.Substring(0, Math.Min(50, formattedText.Length))}...");
+        //    }
+        //}
+
+        //public void ProcessParagraph(Paragraph para, ClickUpDocumentBuilder builder)
+        //{
+        //    var paragraphProperties = para.ParagraphProperties;
+        //    var styleId = paragraphProperties?.ParagraphStyleId?.Val?.Value;
+        //    var numProperties = paragraphProperties?.NumberingProperties;
+
+        //    // Check if it's a heading
+        //    if (styleId != null && styleId.StartsWith("Heading"))
+        //    {
+        //        int level = int.TryParse(styleId.Replace("Heading", ""), out int l) ? Math.Min(l, 6) : 1;
+        //        string text = ExtractFormattedText(para);
+        //        if (!string.IsNullOrWhiteSpace(text))
+        //        {
+        //            builder.AddHeading(text, level);
+        //            Console.WriteLine($"Added heading (level {level}): {text}");
+        //        }
+        //        return;
+        //    }
+
+        //    // Check if it's a list item
+        //    if (numProperties != null)
+        //    {
+        //        string text = ExtractFormattedText(para);
+        //        if (!string.IsNullOrWhiteSpace(text))
+        //        {
+        //            var numId = numProperties.NumberingId?.Val?.Value;
+        //            var ilvl = numProperties.NumberingLevelReference?.Val?.Value ?? 0;
+
+        //            // Get numbering format to determine bullet vs numbered
+        //            bool isOrdered = IsOrderedList(numId, ilvl);
+        //            string indent = new string(' ', (int)ilvl * 2);
+
+        //            if (isOrdered)
+        //            {
+        //                // Track counter for this list level
+        //                string listKey = $"{numId}_{ilvl}";
+
+        //                if (!_listCounters.ContainsKey(listKey))
+        //                {
+        //                    _listCounters[listKey] = 1;
+        //                }
+        //                else
+        //                {
+        //                    _listCounters[listKey]++;
+        //                }
+
+        //                builder.AddMarkdown($"{indent}{_listCounters[listKey]}. {text}\n");
+        //                Console.WriteLine($"Added numbered list item ({_listCounters[listKey]}): {text}");
+        //            }
+        //            else
+        //            {
+        //                // Bullet list
+        //                builder.AddMarkdown($"{indent}- {text}\n");
+        //                Console.WriteLine($"Added bullet list item: {text}");
+        //            }
+        //        }
+        //        return;
+        //    }
+        //    else
+        //    {
+        //        // Reset list counters when not in a list
+        //        _listCounters.Clear();
+        //    }
+
+        //    // Check if it's a blockquote (typically styled as "Quote" or "IntenseQuote")
+        //    if (styleId != null && (styleId.Contains("Quote") || styleId.Contains("Emphasis")))
+        //    {
+        //        string text = ExtractFormattedText(para);
+        //        if (!string.IsNullOrWhiteSpace(text))
+        //        {
+        //            builder.AddBlockquote(text);
+        //            Console.WriteLine($"Added blockquote: {text}");
+        //        }
+        //        return;
+        //    }
+
+        //    // Check for code block (typically styled as "Code" or "HTMLCode")
+        //    if (styleId != null && styleId.Contains("Code"))
+        //    {
+        //        string text = para.InnerText;
+        //        if (!string.IsNullOrWhiteSpace(text))
+        //        {
+        //            builder.AddCodeBlock(text);
+        //            Console.WriteLine($"Added code block: {text}");
+        //        }
+        //        return;
+        //    }
+
+        //    // Check for horizontal rule (empty paragraph with border)
+        //    if (HasBottomBorder(paragraphProperties) && string.IsNullOrWhiteSpace(para.InnerText))
+        //    {
+        //        builder.AddHorizontalRule();
+        //        Console.WriteLine("Added horizontal rule");
+        //        return;
+        //    }
+
+        //    // Regular paragraph with inline formatting
+        //    string formattedText = ExtractFormattedText(para);
+        //    if (!string.IsNullOrWhiteSpace(formattedText))
+        //    {
+        //        builder.AddParagraph(formattedText);
+        //        Console.WriteLine($"Added paragraph: {formattedText.Substring(0, Math.Min(50, formattedText.Length))}...");
+        //    }
+        //}
 
         public void ProcessParagraph(Paragraph para, ClickUpDocumentBuilder builder)
         {
             var paragraphProperties = para.ParagraphProperties;
             var styleId = paragraphProperties?.ParagraphStyleId?.Val?.Value;
             var numProperties = paragraphProperties?.NumberingProperties;
+
+            var numberingProperties = para.Descendants<W.NumberingProperties>().FirstOrDefault();
+
+             if (numberingProperties != null)
+            {
+                var numIdElement = numberingProperties.Descendants<W.NumberingId>().FirstOrDefault();
+                var levelIdElement = numberingProperties.Descendants<W.NumberingLevelReference>().FirstOrDefault();
+
+                if (numIdElement != null && levelIdElement != null)
+                {
+                    //int numberingId = numIdElement.Val.Value;
+                    //int levelId = levelIdElement.Val.Value;  // Note: Val property, not 'v'
+                    //                                         // This pair (numberingId, levelId) uniquely identifies the counter state.
+                    //                                         // ... proceed to state management ...
+
+                    int numId = numIdElement.Val.Value;
+                    int ilvl = levelIdElement.Val.Value;
+                    string listKey = $"{numId}-{ilvl}"; // e.g., "3-0"
+
+                    // 1. Reset Lower Levels: If we hit a new list or a higher level (e.g., going from 1.1 to 2.),
+                    // you must reset counters for all *lower* levels (e.g., level 1.1.X).
+                    // This is advanced, but necessary for complex lists. For a simple fix, focus on incrementing.
+
+                    // 2. Get/Increment the Counter:
+                    if (!_listCounters.ContainsKey(listKey))
+                    {
+                        _listCounters[listKey] = 1; // Start at 1
+                    }
+                    else
+                    {
+                        _listCounters[listKey]++; // Increment
+                    }
+
+                    int currentCount = _listCounters[listKey];
+
+                    // 3. Apply Markdown: Prepend the number to the text
+                    string plainText = para.InnerText;
+
+                    // NOTE: For ClickUp/Markdown, you usually just need "1. " or "  1. " (indented).
+                    // We'll use the simplest form here:
+                    string listItemText = $"{currentCount}. {plainText.Trim()}";
+
+                    // You should adapt this to your builder's specific list method.
+                    // For example:
+                     builder.AddListItem(listItemText);
+                    Console.WriteLine($"Added numbered paragraph: {listItemText.Substring(0, Math.Min(50, listItemText.Length))}...");
+
+                    // Stop processing this paragraph as a standard paragraph now.
+                    return;
+                }
+            }
 
             // Check if it's a heading
             if (styleId != null && styleId.StartsWith("Heading"))
@@ -32,30 +273,67 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 if (!string.IsNullOrWhiteSpace(text))
                 {
                     builder.AddHeading(text, level);
-                    ConsoleHelper.WriteInfo($"Added heading (level {level}): {text}");
+                    Console.WriteLine($"Added heading (level {level}): {text}");
                 }
                 return;
             }
 
-            // Check if it's a list item
-            if (numProperties != null)
-            {
-                string text = ExtractFormattedText(para);
-                if (!string.IsNullOrWhiteSpace(text))
-                {
-                    var numId = numProperties.NumberingId?.Val?.Value ?? 0;
-                    var ilvl = numProperties.NumberingLevelReference?.Val?.Value ?? 0;
+            //// Check if it's a list item
+            //if (numProperties != null)
+            //{
+            //    string text = ExtractFormattedText(para);
+            //    if (!string.IsNullOrWhiteSpace(text))
+            //    {
+            //        var numId = numProperties.NumberingId?.Val?.Value;
+            //        var ilvl = numProperties.NumberingLevelReference?.Val?.Value ?? 0;
 
-                    // Get numbering format to determine bullet vs numbered
-                    bool isOrdered = IsOrderedList(numId, ilvl);
-                    string indent = new string(' ', (int)ilvl * 2);
-                    string prefix = isOrdered ? "1. " : "- ";
+            //        // Reset deeper level counters when moving back to shallower level
+            //        if (_previousListLevel > ilvl && numId.HasValue)
+            //        {
+            //            // Reset all deeper levels
+            //            for (int level = (int)ilvl + 1; level <= _previousListLevel; level++)
+            //            {
+            //                ResetCounterForLevel(numId.Value, level);
+            //            }
+            //        }
+            //        _previousListLevel = (int)ilvl;
 
-                    builder.AddMarkdown($"{indent}{prefix}{text}");
-                    ConsoleHelper.WriteInfo($"Added list item: {text}");
-                }
-                return;
-            }
+            //        // Get numbering format to determine bullet vs numbered
+            //        bool isOrdered = IsOrderedList(numId, ilvl);
+            //        string indent = new string(' ', (int)ilvl * 2);
+
+            //        if (isOrdered)
+            //        {
+            //            // Track counter for this list level
+            //            string listKey = $"{numId}_{ilvl}";
+
+            //            if (!_listCounters.ContainsKey(listKey))
+            //            {
+            //                _listCounters[listKey] = 1;
+            //            }
+            //            else
+            //            {
+            //                _listCounters[listKey]++;
+            //            }
+
+            //            builder.AddMarkdown($"{indent}{_listCounters[listKey]}. {text}\n");
+            //            Console.WriteLine($"Added numbered list item ({_listCounters[listKey]}): {text}");
+            //        }
+            //        else
+            //        {
+            //            // Bullet list
+            //            builder.AddMarkdown($"{indent}- {text}\n");
+            //            Console.WriteLine($"Added bullet list item: {text}");
+            //        }
+            //    }
+            //    return;
+            //}
+            //else
+            //{
+            //    // Reset list counters when not in a list
+            //    _listCounters.Clear();
+            //    _previousListLevel = -1;
+            //}
 
             // Check if it's a blockquote (typically styled as "Quote" or "IntenseQuote")
             if (styleId != null && (styleId.Contains("Quote") || styleId.Contains("Emphasis")))
@@ -64,7 +342,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 if (!string.IsNullOrWhiteSpace(text))
                 {
                     builder.AddBlockquote(text);
-                    ConsoleHelper.WriteInfo($"Added blockquote: {text}");
+                    Console.WriteLine($"Added blockquote: {text}");
                 }
                 return;
             }
@@ -76,7 +354,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 if (!string.IsNullOrWhiteSpace(text))
                 {
                     builder.AddCodeBlock(text);
-                    ConsoleHelper.WriteInfo($"Added code block: {text}");
+                    Console.WriteLine($"Added code block: {text}");
                 }
                 return;
             }
@@ -85,7 +363,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
             if (HasBottomBorder(paragraphProperties) && string.IsNullOrWhiteSpace(para.InnerText))
             {
                 builder.AddHorizontalRule();
-                ConsoleHelper.WriteInfo("Added horizontal rule");
+                Console.WriteLine("Added horizontal rule");
                 return;
             }
 
@@ -94,7 +372,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
             if (!string.IsNullOrWhiteSpace(formattedText))
             {
                 builder.AddParagraph(formattedText);
-                ConsoleHelper.WriteInfo($"Added paragraph: {formattedText.Substring(0, Math.Min(50, formattedText.Length))}...");
+                Console.WriteLine($"Added paragraph: {formattedText.Substring(0, Math.Min(50, formattedText.Length))}...");
             }
         }
 
@@ -121,6 +399,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 bool isBold = runProps.Bold?.Val ?? false;
                 bool isItalic = runProps.Italic?.Val ?? false;
                 bool isStrikethrough = runProps.Strike?.Val ?? false;
+
                 bool isCode = IsCodeStyle(runProps);
                 bool isSubscript = runProps.VerticalTextAlignment?.Val?.Value == VerticalPositionValues.Subscript;
                 bool isSuperscript = runProps.VerticalTextAlignment?.Val?.Value == VerticalPositionValues.Superscript;
@@ -245,6 +524,8 @@ namespace ClickUpDocumentImporter.DocumentConverter
 
         private bool IsCodeStyle(RunProperties runProps)
         {
+            return false;
+
             // Check if font is monospace (common code fonts)
             var font = runProps.RunFonts?.Ascii?.Value;
             if (font != null)
@@ -365,6 +646,36 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 "white" => "white",
                 _ => "yellow"
             };
+        }
+
+        // Helper method to safely check boolean properties
+        // In OpenXML, if a property exists but Val is null, it's considered true
+        private bool IsBoolPropertyOn(OnOffType property)
+        {
+            if (property == null) return false;
+
+            // If Val is null, the property is considered "on" (true)
+            if (property.Val == null) return true;
+
+            // Otherwise check the actual value
+            return property.Val.Value != false;
+        }
+
+        // Reset list counters (call between document sections if needed)
+        public void ResetListCounters()
+        {
+            _listCounters.Clear();
+            _previousListLevel = -1;
+        }
+
+        // Reset counter for a specific list level (useful for nested lists)
+        private void ResetCounterForLevel(int numId, int level)
+        {
+            string listKey = $"{numId}_{level}";
+            if (_listCounters.ContainsKey(listKey))
+            {
+                _listCounters.Remove(listKey);
+            }
         }
 
         public void ProcessTable(Table table, ClickUpDocumentBuilder builder)

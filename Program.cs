@@ -168,7 +168,7 @@ namespace ClickUpDocumentImporter
             ConsoleHelper.WriteSeparator();
             ConsoleHelper.WriteSuccess("\nImport complete!");
             ConsoleHelper.Pause();
-        }
+         }
 
         static bool EnterDocumentDirectory()
         {

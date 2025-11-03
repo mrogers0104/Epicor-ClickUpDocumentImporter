@@ -9,6 +9,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
     // ===== Helper Class for Image Data =====
     public class ImageData
     {
+        public string RelationshipId { get; set; }
         public byte[] Data { get; set; }
         public string FileName { get; set; }
         public int Index { get; set; }

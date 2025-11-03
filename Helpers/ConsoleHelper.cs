@@ -1,6 +1,7 @@
 ﻿using ClickUpDocumentImporter.Helpers;
 using System.Runtime.InteropServices;
 using System.Text;
+
 //using File = System.IO.File;
 
 namespace ClickUpDocumentImporter.Helpers
@@ -16,7 +17,8 @@ namespace ClickUpDocumentImporter.Helpers
 
     public class SelectionItem
     {
-        public SelectionItem() { }
+        public SelectionItem()
+        { }
 
         public SelectionItem(string text, object value = null)
         {
@@ -201,14 +203,17 @@ namespace ClickUpDocumentImporter.Helpers
 
                     List<int> pos = new List<int>();
 
-                    // Draw initial list
-                    for (int i = 0; i < items.Count; i++)
-                    {
-                        Console.WriteLine();
-                    }
+                    SetupConsoleSize(startTop + items.Count);
+
+                    //// Draw initial list
+                    //for (int i = 0; i < items.Count; i++)
+                    //{
+                    //    // 1. Manually set the cursor position to the correct line for the current item
+                    //    Console.SetCursorPosition(0, startTop + i);
+                    //    Console.Write("");
+                    //}
 
                     var now = Console.CursorTop;
-
 
                     while (selecting)
                     {
@@ -222,12 +227,15 @@ namespace ClickUpDocumentImporter.Helpers
                             case ConsoleKey.UpArrow:
                                 selectedIndex = selectedIndex > 0 ? selectedIndex - 1 : items.Count - 1;
                                 break;
+
                             case ConsoleKey.DownArrow:
                                 selectedIndex = selectedIndex < items.Count - 1 ? selectedIndex + 1 : 0;
                                 break;
+
                             case ConsoleKey.Enter:
                                 selecting = false;
                                 break;
+
                             case ConsoleKey.Escape:
                                 ClearSelectionDisplay(items.Count + 1, promptTop);
                                 return null;
@@ -242,7 +250,7 @@ namespace ClickUpDocumentImporter.Helpers
                     ClearSelectionDisplay(items.Count + 3, newTop);
                     //ClearSelectionDisplay(items.Count + 1, promptTop);
                     var selected = items[selectedIndex];
-                    var selectedText = (string) (selected.Value);
+                    var selectedText = (string)(selected.Value);
                     //Console.WriteLine($"{new string(' ', indent)}✓ Selected: {selected.Text}");
                     ConsoleHelper.WriteInfo($"✓ Selected: {selectedText.Trim()}");
                     //Log($"User selected: {selected.Text}", LogLevel.Information);
@@ -253,6 +261,30 @@ namespace ClickUpDocumentImporter.Helpers
                     LogError($"Error in SelectFromList: {ex.Message}");
                     throw;
                 }
+            }
+        }
+
+        private static void SetupConsoleSize(int requiredHeight)
+        {
+            try
+            {
+                // Set the Buffer Height (total scrollable lines)
+                if (Console.BufferHeight < requiredHeight)
+                {
+                    Console.BufferHeight = requiredHeight;
+                }
+
+                // Set the Window Height (visible lines). WindowHeight cannot exceed BufferHeight.
+                if (Console.WindowHeight < requiredHeight)
+                {
+                    Console.WindowHeight = requiredHeight;
+                }
+            }
+            catch (System.IO.IOException)
+            {
+                // Handle cases where the console is not interactive (e.g., redirection)
+                // or if the environment prevents resizing.
+                Console.WriteLine("Warning: Could not set console size.");
             }
         }
 
@@ -290,15 +322,19 @@ namespace ClickUpDocumentImporter.Helpers
                             case ConsoleKey.UpArrow:
                                 currentIndex = currentIndex > 0 ? currentIndex - 1 : items.Count - 1;
                                 break;
+
                             case ConsoleKey.DownArrow:
                                 currentIndex = currentIndex < items.Count - 1 ? currentIndex + 1 : 0;
                                 break;
+
                             case ConsoleKey.Spacebar:
                                 items[currentIndex].IsSelected = !items[currentIndex].IsSelected;
                                 break;
+
                             case ConsoleKey.Enter:
                                 selecting = false;
                                 break;
+
                             case ConsoleKey.Escape:
                                 ClearSelectionDisplay(items.Count + 1, promptTop);
                                 return new List<SelectionItem>();
@@ -320,46 +356,108 @@ namespace ClickUpDocumentImporter.Helpers
             }
         }
 
+        //private static void DisplaySelectionList(List<SelectionItem> items, int selectedIndex, int indent, bool multiSelect, int startTop)
+        //{
+        //    //Console.SetCursorPosition(0, Console.CursorTop - items.Count);
+        //    Console.SetCursorPosition(0, startTop);
+
+        //    for (int i = 0; i < items.Count; i++)
+        //    {
+        //        //// Clear the entire line first
+        //        //Console.Write(new string(' ', Console.WindowWidth - 1));
+        //        //Console.SetCursorPosition(0, startTop + i);
+
+        //        string indentation = new string(' ', indent);
+        //        string selector = i == selectedIndex ? ">" : " ";
+        //        string checkbox = multiSelect ? (items[i].IsSelected ? "[✓]" : "[ ]") : "";
+
+        //        if (i == selectedIndex)
+        //        {
+        //            Console.ForegroundColor = ConsoleColor.Cyan;
+        //            Console.Write($"{indentation}{selector} ");
+        //            if (multiSelect) Console.Write($"{checkbox} ");
+        //            Console.WriteLine($"{items[i].Text}".PadRight(Console.WindowWidth - indent - 5));
+        //            Console.ResetColor();
+        //        }
+        //        else
+        //        {
+        //            Console.Write($"{indentation}{selector} ");
+        //            if (multiSelect)
+        //            {
+        //                if (items[i].IsSelected)
+        //                {
+        //                    Console.ForegroundColor = ConsoleColor.Green;
+        //                    Console.Write($"{checkbox} ");
+        //                    Console.ResetColor();
+        //                }
+        //                else
+        //                {
+        //                    Console.Write($"{checkbox} ");
+        //                }
+        //            }
+        //            Console.WriteLine($"{items[i].Text}".PadRight(Console.WindowWidth - indent - 5));
+        //        }
+        //    }
+        //}
+
         private static void DisplaySelectionList(List<SelectionItem> items, int selectedIndex, int indent, bool multiSelect, int startTop)
         {
-            Console.SetCursorPosition(0, Console.CursorTop - items.Count);
-            //Console.SetCursorPosition(0, startTop);
+            // The initial Console.SetCursorPosition(0, startTop) is technically redundant
+            // if we set it inside the loop, but it doesn't hurt.
+            // Console.SetCursorPosition(0, startTop); 
 
             for (int i = 0; i < items.Count; i++)
             {
-                //// Clear the entire line first
-                //Console.Write(new string(' ', Console.WindowWidth - 1));
-                //Console.SetCursorPosition(0, startTop + i);
+                // 1. Manually set the cursor position to the correct line for the current item
+                Console.SetCursorPosition(0, startTop + i);
+
+                // Optional: Clear the line before writing to ensure no residue from previous content
+                // Console.Write(new string(' ', Console.WindowWidth - 1));
+                // Console.SetCursorPosition(0, startTop + i); // Re-set after clearing
 
                 string indentation = new string(' ', indent);
                 string selector = i == selectedIndex ? ">" : " ";
                 string checkbox = multiSelect ? (items[i].IsSelected ? "[✓]" : "[ ]") : "";
 
+                // Determine the text to write (padding to clear the rest of the line)
+                string outputText = $"{indentation}{selector} ";
+                if (multiSelect)
+                {
+                    outputText += $"{checkbox} ";
+                }
+                outputText += $"{items[i].Text}";
+
+                // Pad the entire line with spaces to clear any old content on that line
+                string paddedText = outputText.PadRight(Console.WindowWidth - 1);
+
                 if (i == selectedIndex)
                 {
                     Console.ForegroundColor = ConsoleColor.Cyan;
-                    Console.Write($"{indentation}{selector} ");
-                    if (multiSelect) Console.Write($"{checkbox} ");
-                    Console.WriteLine($"{items[i].Text}".PadRight(Console.WindowWidth - indent - 5));
+                    // Use Console.Write() instead of Console.WriteLine()
+                    Console.Write(paddedText);
                     Console.ResetColor();
                 }
                 else
                 {
-                    Console.Write($"{indentation}{selector} ");
-                    if (multiSelect)
+                    // Handle the green color for selected item's checkbox if multiSelect is true
+                    if (multiSelect && items[i].IsSelected)
                     {
-                        if (items[i].IsSelected)
-                        {
-                            Console.ForegroundColor = ConsoleColor.Green;
-                            Console.Write($"{checkbox} ");
-                            Console.ResetColor();
-                        }
-                        else
-                        {
-                            Console.Write($"{checkbox} ");
-                        }
+                        // Write the non-colored part first
+                        Console.Write($"{indentation}{selector} ");
+
+                        // Write the green checkbox part
+                        Console.ForegroundColor = ConsoleColor.Green;
+                        Console.Write($"{checkbox} ");
+                        Console.ResetColor();
+
+                        // Write the rest of the text, padded to clear the line
+                        Console.Write($"{items[i].Text}".PadRight(Console.WindowWidth - outputText.Length));
                     }
-                    Console.WriteLine($"{items[i].Text}".PadRight(Console.WindowWidth - indent - 5));
+                    else
+                    {
+                        // Use Console.Write() instead of Console.WriteLine()
+                        Console.Write(paddedText);
+                    }
                 }
             }
         }
@@ -603,7 +701,6 @@ namespace ClickUpDocumentImporter.Helpers
                 {
                     Write(msg, LogLevel.Success);
                     LogSuccess(msg);
-
                 }
                 catch (Exception ex)
                 {
@@ -627,6 +724,7 @@ namespace ClickUpDocumentImporter.Helpers
                 }
             }
         }
+
         public static void WriteError(string msg)
         {
             lock (_lock)
@@ -676,7 +774,6 @@ namespace ClickUpDocumentImporter.Helpers
                 }
             }
         }
-
 
         public static void WriteSeparator(char character = '~', int length = 0)
         {

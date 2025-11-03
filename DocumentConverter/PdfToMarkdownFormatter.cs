@@ -122,7 +122,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
             }
             else if (block.IsBulletPoint)
             {
-                int indentLevel = GetIndentLevel(block);
+                //int indentLevel = GetIndentLevel(block);
 
                 if (listContext.InNumberedList)
                 {
@@ -132,12 +132,13 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 listContext.InBulletList = true;
                 string bulletText = ExtractListItemText(text, isBullet: true);
 
-                string indent = new string(' ', indentLevel * 2);
-                _builder.AddMarkdown($"{indent}- {bulletText}"); // Keep inline formatting in list items
+                //string indent = new string(' ', indentLevel * 2);
+                //_builder.AddMarkdown($"{indent}- {bulletText}"); // Keep inline formatting in list items
+                _builder.AddMarkdown($"- {bulletText}"); // Keep inline formatting in list items
             }
             else if (block.IsNumberedList)
             {
-                int indentLevel = GetIndentLevel(block);
+                //int indentLevel = GetIndentLevel(block);
 
                 if (listContext.InBulletList)
                 {
@@ -147,8 +148,9 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 listContext.InNumberedList = true;
                 string numberedText = ExtractListItemText(text, isBullet: false);
 
-                string indent = new string(' ', indentLevel * 2);
-                _builder.AddMarkdown($"{indent}1. {numberedText}"); // Keep inline formatting in list items
+                //string indent = new string(' ', indentLevel * 2);
+                //_builder.AddMarkdown($"{indent}1. {numberedText}"); // Keep inline formatting in list items
+                _builder.AddMarkdown($"1. {numberedText}"); // Keep inline formatting in list items
             }
             else
             {
