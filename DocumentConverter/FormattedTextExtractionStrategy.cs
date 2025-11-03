@@ -57,6 +57,16 @@ namespace ClickUpDocumentImporter.DocumentConverter
         private const float HORIZONTAL_SPACING_THRESHOLD = 2f;
         private bool hasProcessed = false;
 
+        /// <summary>
+        /// Track events
+        /// </summary>
+        /// <remarks>
+        /// <b>NOTE</b>
+        /// Even though it appears this method is not being used,
+        /// it must remain for ITextExtractionStragety to work properly.
+        /// </remarks>
+        /// <param name="data"></param>
+        /// <param name="type"></param>
         public void EventOccurred(IEventData data, EventType type)
         {
             if (type == EventType.RENDER_TEXT)
