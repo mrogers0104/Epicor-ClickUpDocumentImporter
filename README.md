@@ -227,7 +227,6 @@ classDiagram
     Program --> ConsoleHelper
 ```
 
-
 ---
 
 ## API & implementation notes
@@ -249,17 +248,3 @@ classDiagram
 - ClickUp 401/403 — confirm CLICKUP_API_KEY is valid and has required scopes.
 - Missing images in PDF — some PDFs store images as XObjects or with uncommon encodings. Inspect extracted ImageData content type and convert if needed.
 - Logging — the console helper prints status and errors. Check the output for upload/create errors.
-
----
-
-## Contributing
-
-- Use the main branch for stable code; create feature branches for changes.
-- Run and debug using Visual Studio: use __Build > Build Solution__ and __Debug > Start Debugging__.
-- Add unit tests for converters, extractors, and ClickUpClient retry logic.
-
----
-
-## License
-
-Include your project license here (e.g., MIT). Replace this section with the appropriate license text.
