@@ -18,79 +18,6 @@ namespace ClickUpDocumentImporter.DocumentConverter
     /// </summary>
     public class PdfImageExtractor
     {
-        //public static List<ImageData> ExtractImagesFromPdf(string pdfFilePath)
-        //{
-        //    var images = new List<ImageData>();
-        //    int imageIndex = 0;
-
-        //    string uniqueId = Globals.CreateUniqueImageId(pdfFilePath);
-
-        //    using (PdfDocument pdfDoc = new PdfDocument(new PdfReader(pdfFilePath)))
-        //    {
-        //        int numberOfPages = pdfDoc.GetNumberOfPages();
-
-        //        for (int pageNum = 1; pageNum <= numberOfPages; pageNum++)
-        //        {
-        //            var page = pdfDoc.GetPage(pageNum);
-        //            var resources = page.GetResources();
-
-        //            // !!! Need to find out why this line does not compile
-        //            //var xObjects = resources.GetResourceNames(PdfName.XObject);
-        //            //.Where(name => resources.GetResourceType(name) == PdfName.XObject);
-
-        //            // Get the dictionary of XObjects associated with the page resources.
-        //            var xObjectMap = resources.GetResource(PdfName.XObject);
-        //            if (xObjectMap == null || !xObjectMap.IsDictionary())
-        //            {
-        //                // Skip if there are no XObjects on this page
-        //                continue;
-        //            }
-
-        //            // Get the actual names (keys) from the XObject dictionary
-        //            var xObjects = ((PdfDictionary)xObjectMap).KeySet();
-
-        //            foreach (PdfName xObjectName in xObjects)
-        //            {
-        //                var xObject = resources.GetResource(xObjectName);
-
-        //                if (xObject is PdfStream stream)
-        //                {
-        //                    var subType = stream.GetAsName(PdfName.Subtype);
-
-        //                    if (PdfName.Image.Equals(subType))
-        //                    {
-        //                        try
-        //                        {
-        //                            PdfImageXObject image = new PdfImageXObject(stream);
-        //                            byte[] imageBytes = image.GetImageBytes();
-
-        //                            // Determine file extension
-        //                            string extension = DetermineImageExtension(image);
-
-        //                            images.Add(new ImageData
-        //                            {
-        //                                Data = imageBytes,
-        //                                FileName = $"pdf_image_{imageIndex}_{uniqueId}_{extension}",
-        //                                Index = imageIndex,
-        //                                PageNumber = pageNum
-        //                            });
-
-        //                            imageIndex++;
-        //                        }
-        //                        catch (Exception ex)
-        //                        {
-        //                            Console.WriteLine($"Error extracting image on page {pageNum}: {ex.Message}");
-        //                        }
-        //                    }
-        //                }
-        //            }
-        //        }
-        //    }
-
-        //    Console.WriteLine($"Extracted {images.Count} images from PDF");
-        //    return images;
-        //}
-
         public static List<ImageData> ExtractImagesFromPdf(string pdfFilePath)
         {
             var images = new List<ImageData>();
@@ -124,8 +51,6 @@ namespace ClickUpDocumentImporter.DocumentConverter
 
                         foreach (PdfName xObjectName in xObjects)
                         {
-                            //// 3. Get the specific resource object using the correct resource type and name
-                            //var xObject = resources.GetResource(PdfName.XObject, xObjectName);
                             // 3. Get the specific XObject (stream or dictionary) from the XObject dictionary
                             // This returns the PdfObject associated with the XObject name.
                             var xObject = xObjectMap.GetAsStream(xObjectName);

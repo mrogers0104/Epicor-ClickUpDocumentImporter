@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ClickUpDocumentImporter.DocumentConverter
+﻿namespace ClickUpDocumentImporter.DocumentConverter
 {
     internal class FormattedTextBlock
     {
@@ -27,7 +21,6 @@ namespace ClickUpDocumentImporter.DocumentConverter
         public string LinkUrl { get; set; }
         public string CodeLanguage { get; set; }
         public string Color { get; set; }
-
 
         public override string ToString()
         {

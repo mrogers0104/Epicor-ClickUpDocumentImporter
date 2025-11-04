@@ -1,6 +1,4 @@
-﻿using ClickUpDocumentImporter.Helpers;
-using System.Runtime.InteropServices;
-using System.Text;
+﻿using System.Text;
 
 //using File = System.IO.File;
 
@@ -404,7 +402,7 @@ namespace ClickUpDocumentImporter.Helpers
         {
             // The initial Console.SetCursorPosition(0, startTop) is technically redundant
             // if we set it inside the loop, but it doesn't hurt.
-            // Console.SetCursorPosition(0, startTop); 
+            // Console.SetCursorPosition(0, startTop);
 
             for (int i = 0; i < items.Count; i++)
             {
@@ -462,14 +460,35 @@ namespace ClickUpDocumentImporter.Helpers
             }
         }
 
+        //private static void ClearSelectionDisplay(int lines, int startTop)
+        //{
+        //    Console.SetCursorPosition(0, startTop);
+        //    for (int i = 0; i < lines; i++)
+        //    {
+        //        Console.Write(new string(' ', Console.WindowWidth - 1));
+        //        Console.WriteLine();
+        //    }
+        //    Console.SetCursorPosition(0, startTop);
+        //}
+
         private static void ClearSelectionDisplay(int lines, int startTop)
         {
-            Console.SetCursorPosition(0, startTop);
+            // The string of spaces to clear one line
+            string blankLine = new string(' ', Console.WindowWidth);
+
+            // Loop through the specified number of lines
             for (int i = 0; i < lines; i++)
             {
-                Console.Write(new string(' ', Console.WindowWidth - 1));
-                Console.WriteLine();
+                // 1. Set the cursor to the start of the line to be cleared
+                Console.SetCursorPosition(0, startTop + i);
+
+                // 2. Overwrite the entire line with spaces
+                // We use Console.WindowWidth (or maybe WindowWidth - 1 in some terminals)
+                // and avoid WriteLine, which moves the cursor.
+                Console.Write(blankLine);
             }
+
+            // 3. Reset the cursor to the initial position (or wherever you want to continue printing)
             Console.SetCursorPosition(0, startTop);
         }
 

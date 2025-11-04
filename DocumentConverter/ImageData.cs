@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace ClickUpDocumentImporter.DocumentConverter
+﻿namespace ClickUpDocumentImporter.DocumentConverter
 {
     // ===== Helper Class for Image Data =====
     public class ImageData
@@ -18,9 +12,14 @@ namespace ClickUpDocumentImporter.DocumentConverter
 
         // position properties
         public float X { get; set; }
+
         public float Y { get; set; }
         public float Width { get; set; }
         public float Height { get; set; }
 
+        public override string ToString()
+        {
+            return $"ImageData: {FileName} (RId: {RelationshipId}, Size: {Data?.Length ?? 0} bytes, ({Width}x{Height}))";
+        }
     }
 }

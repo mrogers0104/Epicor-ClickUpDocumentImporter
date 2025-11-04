@@ -1,22 +1,15 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Net.Http.Headers;
 
 namespace ClickUpDocumentImporter.Helpers
 {
     public class ClickUpClient
     {
-
         private readonly HttpClient _httpClient;
         private readonly string _apiKey = Globals.CLICKUP_API_KEY;
         //private readonly string _workspaceId;
         //private readonly string _spaceId;
         //private readonly string _folderId;
         //private readonly string _listId;
-
 
         public ClickUpClient() // string apiKey, string workspaceId, string spaceId) //, string folderId, string listId)
         {
@@ -37,7 +30,6 @@ namespace ClickUpDocumentImporter.Helpers
 
             ClickUpHttpClient = _httpClient;
         }
-
 
         public HttpClient ClickUpHttpClient { get; set; }
     }

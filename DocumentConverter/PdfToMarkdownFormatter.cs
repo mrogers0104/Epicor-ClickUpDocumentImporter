@@ -1,9 +1,4 @@
 ﻿using ClickUpDocumentImporter.Helpers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace ClickUpDocumentImporter.DocumentConverter
 {
@@ -88,7 +83,6 @@ namespace ClickUpDocumentImporter.DocumentConverter
             CloseActiveLists(listContext);
         }
 
-        // --------------------------------------------------------------
         private async Task ProcessTextBlock(FormattedTextBlock block, ListContext listContext)
         {
             if (string.IsNullOrWhiteSpace(block.Text))
@@ -172,132 +166,6 @@ namespace ClickUpDocumentImporter.DocumentConverter
 
             return text;
         }
-
-        // --------------------------------------------------------------
-
-        //private async Task ProcessTextBlock(FormattedTextBlock block, ListContext listContext)
-        //{
-        //    if (string.IsNullOrWhiteSpace(block.Text))
-        //        return;
-
-        //    string text = block.Text.Trim();
-
-        //    // Handle different block types
-        //    if (block.IsHeading)
-        //    {
-        //        CloseActiveLists(listContext);
-        //        int headingLevel = DetermineHeadingLevel(block);
-        //        _builder.AddHeading(text, headingLevel);
-        //    }
-        //    else if (block.IsCodeBlock)
-        //    {
-        //        CloseActiveLists(listContext);
-        //        _builder.AddCodeBlock(block.Text, block.CodeLanguage ?? "");
-        //    }
-        //    else if (block.IsBlockQuote)
-        //    {
-        //        CloseActiveLists(listContext);
-        //        string quoteText = text.TrimStart('>', ' ');
-        //        string formattedText = ApplyInlineFormatting(block, quoteText);
-        //        _builder.AddBlockQuote(formattedText);
-        //    }
-        //    else if (block.IsBulletPoint)
-        //    {
-        //        // Handle nested bullet points
-        //        int indentLevel = GetIndentLevel(block);
-
-        //        // Close numbered list if we were in one
-        //        if (listContext.InNumberedList)
-        //        {
-        //            listContext.InNumberedList = false;
-        //        }
-
-        //        listContext.InBulletList = true;
-        //        string bulletText = ExtractListItemText(text, isBullet: true);
-        //        string formattedText = ApplyInlineFormatting(block, bulletText);
-
-        //        // Add indentation for nested lists
-        //        string indent = new string(' ', indentLevel * 2);
-        //        _builder.AddMarkdown($"{indent}- {formattedText}");
-        //    }
-        //    else if (block.IsNumberedList)
-        //    {
-        //        // Handle nested numbered lists
-        //        int indentLevel = GetIndentLevel(block);
-
-        //        // Close bullet list if we were in one
-        //        if (listContext.InBulletList)
-        //        {
-        //            listContext.InBulletList = false;
-        //        }
-
-        //        listContext.InNumberedList = true;
-        //        string numberedText = ExtractListItemText(text, isBullet: false);
-        //        string formattedText = ApplyInlineFormatting(block, numberedText);
-
-        //        // Add indentation for nested lists
-        //        string indent = new string(' ', indentLevel * 2);
-        //        _builder.AddMarkdown($"{indent}1. {formattedText}");
-        //    }
-        //    else
-        //    {
-        //        // Regular paragraph
-        //        CloseActiveLists(listContext);
-        //        string formattedText = ApplyInlineFormatting(block, text);
-        //        _builder.AddParagraph(formattedText);
-        //    }
-        //}
-
-        //private string ApplyInlineFormatting(FormattedTextBlock block, string text)
-        //{
-        //    // Apply inline markdown formatting based on detected styles
-
-        //    // Handle code spans (inline code)
-        //    if (block.IsCode && !block.IsCodeBlock)
-        //    {
-        //        text = $"`{text}`";
-        //    }
-
-        //    // Handle bold and italic combinations
-        //    if (block.IsBold && block.IsItalic)
-        //    {
-        //        text = $"***{text}***";
-        //    }
-        //    else if (block.IsBold)
-        //    {
-        //        text = $"**{text}**";
-        //    }
-        //    else if (block.IsItalic)
-        //    {
-        //        text = $"*{text}*";
-        //    }
-
-        //    // Handle underline (using HTML since markdown doesn't have native underline)
-        //    if (block.IsUnderlined)
-        //    {
-        //        text = $"<u>{text}</u>";
-        //    }
-
-        //    // Handle strikethrough
-        //    if (block.IsStrikethrough)
-        //    {
-        //        text = $"~~{text}~~";
-        //    }
-
-        //    // Handle links
-        //    if (block.IsLink && !string.IsNullOrEmpty(block.LinkUrl))
-        //    {
-        //        text = $"[{text}]({block.LinkUrl})";
-        //    }
-
-        //    // Handle text color if needed (using HTML)
-        //    if (!string.IsNullOrEmpty(block.Color) && block.Color.ToLower() != "#000000" && block.Color.ToLower() != "black")
-        //    {
-        //        text = $"<span style=\"color: {block.Color}\">{text}</span>";
-        //    }
-
-        //    return text;
-        //}
 
         private string ExtractListItemText(string text, bool isBullet)
         {

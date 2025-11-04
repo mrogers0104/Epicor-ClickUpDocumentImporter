@@ -1,24 +1,10 @@
-﻿using DocumentFormat.OpenXml.Bibliography;
-using DocumentFormat.OpenXml.Drawing;
-using DocumentFormat.OpenXml.ExtendedProperties;
-using DocumentFormat.OpenXml.Office2019.Presentation;
-using DocumentFormat.OpenXml.Spreadsheet;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+﻿using iText.Kernel.Font;
+
 //using iTextSharp.text;
-using iText.Kernel.Geom;
-using iText.Kernel.Pdf;
 using iText.Kernel.Pdf.Canvas.Parser;
 using iText.Kernel.Pdf.Canvas.Parser.Data;
 using iText.Kernel.Pdf.Canvas.Parser.Listener;
-using iText.Kernel.Pdf.Xobject;
-using iText.Kernel.Font;
-
+using System.Text;
 
 namespace ClickUpDocumentImporter.DocumentConverter
 {
@@ -331,7 +317,6 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 fullText = fullText[1..];
             }
 
-
             bool isNumberedList = System.Text.RegularExpressions.Regex.IsMatch(
                 fullText.TrimStart(), @"^\d+[\.\)]\s");
 
@@ -446,8 +431,8 @@ namespace ClickUpDocumentImporter.DocumentConverter
             // Large vertical spacing
             return lineSpacing > LINE_SPACING_THRESHOLD * 1.5;
         }
-        // --------------------------------------------------------------------------------
 
+        // --------------------------------------------------------------------------------
 
         private bool IsCodeBlock(List<PreservedTextRenderInfo> chunks, string text)
         {

@@ -1,11 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using ClickUpDocumentImporter.Helpers;
+﻿using ClickUpDocumentImporter.Helpers;
+using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Wordprocessing;
+using System.Text;
+
 using W = DocumentFormat.OpenXml.Wordprocessing;
 
 namespace ClickUpDocumentImporter.DocumentConverter
@@ -13,200 +11,18 @@ namespace ClickUpDocumentImporter.DocumentConverter
     public class WordToMarkdownFormatter
     {
         private readonly WordprocessingDocument _wordDoc;
+        private readonly MainDocumentPart _mainPart;
         private Dictionary<string, int> _listCounters; // Track list item numbers
         private int _previousListLevel = -1; // Track previous list level for reset logic
 
         public WordToMarkdownFormatter(WordprocessingDocument wordDoc)
         {
             _wordDoc = wordDoc;
+            _mainPart = wordDoc?.MainDocumentPart;
+
             _listCounters = new Dictionary<string, int>();
             _previousListLevel = -1;
         }
-
-        //public void ProcessParagraph(Paragraph para, ClickUpDocumentBuilder builder)
-        //{
-        //    var paragraphProperties = para.ParagraphProperties;
-        //    var styleId = paragraphProperties?.ParagraphStyleId?.Val?.Value;
-        //    var numProperties = paragraphProperties?.NumberingProperties;
-
-        //    // Check if it's a heading
-        //    if (styleId != null && styleId.StartsWith("Heading"))
-        //    {
-        //        int level = int.TryParse(styleId.Replace("Heading", ""), out int l) ? Math.Min(l, 6) : 1;
-        //        string text = ExtractFormattedText(para);
-        //        if (!string.IsNullOrWhiteSpace(text))
-        //        {
-        //            builder.AddHeading(text, level);
-        //            ConsoleHelper.WriteInfo($"Added heading (level {level}): {text}");
-        //        }
-        //        return;
-        //    }
-
-        //    // Check if it's a list item
-        //    if (numProperties != null)
-        //    {
-        //        string text = ExtractFormattedText(para);
-        //        if (!string.IsNullOrWhiteSpace(text))
-        //        {
-        //            var numId = numProperties.NumberingId?.Val?.Value ?? 0;
-        //            var ilvl = numProperties.NumberingLevelReference?.Val?.Value ?? 0;
-
-        //            // Get numbering format to determine bullet vs numbered
-        //            bool isOrdered = IsOrderedList(numId, ilvl);
-        //            string indent = new string(' ', (int)ilvl * 2);
-        //            string prefix = isOrdered ? "1. " : "- ";
-
-        //            builder.AddMarkdown($"{indent}{prefix}{text}");
-        //            ConsoleHelper.WriteInfo($"Added list item: {text}");
-        //        }
-        //        return;
-        //    }
-
-        //    // Check if it's a blockquote (typically styled as "Quote" or "IntenseQuote")
-        //    if (styleId != null && (styleId.Contains("Quote") || styleId.Contains("Emphasis")))
-        //    {
-        //        string text = ExtractFormattedText(para);
-        //        if (!string.IsNullOrWhiteSpace(text))
-        //        {
-        //            builder.AddBlockquote(text);
-        //            ConsoleHelper.WriteInfo($"Added blockquote: {text}");
-        //        }
-        //        return;
-        //    }
-
-        //    // Check for code block (typically styled as "Code" or "HTMLCode")
-        //    if (styleId != null && styleId.Contains("Code"))
-        //    {
-        //        string text = para.InnerText;
-        //        if (!string.IsNullOrWhiteSpace(text))
-        //        {
-        //            builder.AddCodeBlock(text);
-        //            ConsoleHelper.WriteInfo($"Added code block: {text}");
-        //        }
-        //        return;
-        //    }
-
-        //    // Check for horizontal rule (empty paragraph with border)
-        //    if (HasBottomBorder(paragraphProperties) && string.IsNullOrWhiteSpace(para.InnerText))
-        //    {
-        //        builder.AddHorizontalRule();
-        //        ConsoleHelper.WriteInfo("Added horizontal rule");
-        //        return;
-        //    }
-
-        //    // Regular paragraph with inline formatting
-        //    string formattedText = ExtractFormattedText(para);
-        //    if (!string.IsNullOrWhiteSpace(formattedText))
-        //    {
-        //        builder.AddParagraph(formattedText);
-        //        ConsoleHelper.WriteInfo($"Added paragraph: {formattedText.Substring(0, Math.Min(50, formattedText.Length))}...");
-        //    }
-        //}
-
-        //public void ProcessParagraph(Paragraph para, ClickUpDocumentBuilder builder)
-        //{
-        //    var paragraphProperties = para.ParagraphProperties;
-        //    var styleId = paragraphProperties?.ParagraphStyleId?.Val?.Value;
-        //    var numProperties = paragraphProperties?.NumberingProperties;
-
-        //    // Check if it's a heading
-        //    if (styleId != null && styleId.StartsWith("Heading"))
-        //    {
-        //        int level = int.TryParse(styleId.Replace("Heading", ""), out int l) ? Math.Min(l, 6) : 1;
-        //        string text = ExtractFormattedText(para);
-        //        if (!string.IsNullOrWhiteSpace(text))
-        //        {
-        //            builder.AddHeading(text, level);
-        //            Console.WriteLine($"Added heading (level {level}): {text}");
-        //        }
-        //        return;
-        //    }
-
-        //    // Check if it's a list item
-        //    if (numProperties != null)
-        //    {
-        //        string text = ExtractFormattedText(para);
-        //        if (!string.IsNullOrWhiteSpace(text))
-        //        {
-        //            var numId = numProperties.NumberingId?.Val?.Value;
-        //            var ilvl = numProperties.NumberingLevelReference?.Val?.Value ?? 0;
-
-        //            // Get numbering format to determine bullet vs numbered
-        //            bool isOrdered = IsOrderedList(numId, ilvl);
-        //            string indent = new string(' ', (int)ilvl * 2);
-
-        //            if (isOrdered)
-        //            {
-        //                // Track counter for this list level
-        //                string listKey = $"{numId}_{ilvl}";
-
-        //                if (!_listCounters.ContainsKey(listKey))
-        //                {
-        //                    _listCounters[listKey] = 1;
-        //                }
-        //                else
-        //                {
-        //                    _listCounters[listKey]++;
-        //                }
-
-        //                builder.AddMarkdown($"{indent}{_listCounters[listKey]}. {text}\n");
-        //                Console.WriteLine($"Added numbered list item ({_listCounters[listKey]}): {text}");
-        //            }
-        //            else
-        //            {
-        //                // Bullet list
-        //                builder.AddMarkdown($"{indent}- {text}\n");
-        //                Console.WriteLine($"Added bullet list item: {text}");
-        //            }
-        //        }
-        //        return;
-        //    }
-        //    else
-        //    {
-        //        // Reset list counters when not in a list
-        //        _listCounters.Clear();
-        //    }
-
-        //    // Check if it's a blockquote (typically styled as "Quote" or "IntenseQuote")
-        //    if (styleId != null && (styleId.Contains("Quote") || styleId.Contains("Emphasis")))
-        //    {
-        //        string text = ExtractFormattedText(para);
-        //        if (!string.IsNullOrWhiteSpace(text))
-        //        {
-        //            builder.AddBlockquote(text);
-        //            Console.WriteLine($"Added blockquote: {text}");
-        //        }
-        //        return;
-        //    }
-
-        //    // Check for code block (typically styled as "Code" or "HTMLCode")
-        //    if (styleId != null && styleId.Contains("Code"))
-        //    {
-        //        string text = para.InnerText;
-        //        if (!string.IsNullOrWhiteSpace(text))
-        //        {
-        //            builder.AddCodeBlock(text);
-        //            Console.WriteLine($"Added code block: {text}");
-        //        }
-        //        return;
-        //    }
-
-        //    // Check for horizontal rule (empty paragraph with border)
-        //    if (HasBottomBorder(paragraphProperties) && string.IsNullOrWhiteSpace(para.InnerText))
-        //    {
-        //        builder.AddHorizontalRule();
-        //        Console.WriteLine("Added horizontal rule");
-        //        return;
-        //    }
-
-        //    // Regular paragraph with inline formatting
-        //    string formattedText = ExtractFormattedText(para);
-        //    if (!string.IsNullOrWhiteSpace(formattedText))
-        //    {
-        //        builder.AddParagraph(formattedText);
-        //        Console.WriteLine($"Added paragraph: {formattedText.Substring(0, Math.Min(50, formattedText.Length))}...");
-        //    }
-        //}
 
         public void ProcessParagraph(Paragraph para, ClickUpDocumentBuilder builder)
         {
@@ -216,18 +32,13 @@ namespace ClickUpDocumentImporter.DocumentConverter
 
             var numberingProperties = para.Descendants<W.NumberingProperties>().FirstOrDefault();
 
-             if (numberingProperties != null)
+            if (numberingProperties != null)
             {
                 var numIdElement = numberingProperties.Descendants<W.NumberingId>().FirstOrDefault();
                 var levelIdElement = numberingProperties.Descendants<W.NumberingLevelReference>().FirstOrDefault();
 
                 if (numIdElement != null && levelIdElement != null)
                 {
-                    //int numberingId = numIdElement.Val.Value;
-                    //int levelId = levelIdElement.Val.Value;  // Note: Val property, not 'v'
-                    //                                         // This pair (numberingId, levelId) uniquely identifies the counter state.
-                    //                                         // ... proceed to state management ...
-
                     int numId = numIdElement.Val.Value;
                     int ilvl = levelIdElement.Val.Value;
                     string listKey = $"{numId}-{ilvl}"; // e.g., "3-0"
@@ -257,7 +68,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
 
                     // You should adapt this to your builder's specific list method.
                     // For example:
-                     builder.AddListItem(listItemText);
+                    builder.AddListItem(listItemText);
                     Console.WriteLine($"Added numbered paragraph: {listItemText.Substring(0, Math.Min(50, listItemText.Length))}...");
 
                     // Stop processing this paragraph as a standard paragraph now.
@@ -277,63 +88,6 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 }
                 return;
             }
-
-            //// Check if it's a list item
-            //if (numProperties != null)
-            //{
-            //    string text = ExtractFormattedText(para);
-            //    if (!string.IsNullOrWhiteSpace(text))
-            //    {
-            //        var numId = numProperties.NumberingId?.Val?.Value;
-            //        var ilvl = numProperties.NumberingLevelReference?.Val?.Value ?? 0;
-
-            //        // Reset deeper level counters when moving back to shallower level
-            //        if (_previousListLevel > ilvl && numId.HasValue)
-            //        {
-            //            // Reset all deeper levels
-            //            for (int level = (int)ilvl + 1; level <= _previousListLevel; level++)
-            //            {
-            //                ResetCounterForLevel(numId.Value, level);
-            //            }
-            //        }
-            //        _previousListLevel = (int)ilvl;
-
-            //        // Get numbering format to determine bullet vs numbered
-            //        bool isOrdered = IsOrderedList(numId, ilvl);
-            //        string indent = new string(' ', (int)ilvl * 2);
-
-            //        if (isOrdered)
-            //        {
-            //            // Track counter for this list level
-            //            string listKey = $"{numId}_{ilvl}";
-
-            //            if (!_listCounters.ContainsKey(listKey))
-            //            {
-            //                _listCounters[listKey] = 1;
-            //            }
-            //            else
-            //            {
-            //                _listCounters[listKey]++;
-            //            }
-
-            //            builder.AddMarkdown($"{indent}{_listCounters[listKey]}. {text}\n");
-            //            Console.WriteLine($"Added numbered list item ({_listCounters[listKey]}): {text}");
-            //        }
-            //        else
-            //        {
-            //            // Bullet list
-            //            builder.AddMarkdown($"{indent}- {text}\n");
-            //            Console.WriteLine($"Added bullet list item: {text}");
-            //        }
-            //    }
-            //    return;
-            //}
-            //else
-            //{
-            //    // Reset list counters when not in a list
-            //    _listCounters.Clear();
-            //    _previousListLevel = -1;
-            //}
 
             // Check if it's a blockquote (typically styled as "Quote" or "IntenseQuote")
             if (styleId != null && (styleId.Contains("Quote") || styleId.Contains("Emphasis")))
@@ -379,6 +133,7 @@ namespace ClickUpDocumentImporter.DocumentConverter
         private string ExtractFormattedText(Paragraph para)
         {
             var sb = new StringBuilder();
+            string lastFormatting = ""; // Track the last formatting applied
 
             foreach (var run in para.Elements<Run>())
             {
@@ -389,17 +144,14 @@ namespace ClickUpDocumentImporter.DocumentConverter
                 if (runProps == null)
                 {
                     sb.Append(text);
+                    lastFormatting = "";
                     continue;
                 }
 
-                // Track formatting flags
-                //bool isBold = runProps.Bold != null && (runProps.Bold.Val != null || runProps.Bold.Val != false);
-                //bool isItalic = runProps.Italic != null && (runProps.Italic.Val != null || runProps.Italic.Val != false);
-                //bool isStrikethrough = runProps.Strike != null && (runProps.Strike.Val != null || runProps.Strike.Val != false);
-                bool isBold = runProps.Bold?.Val ?? false;
-                bool isItalic = runProps.Italic?.Val ?? false;
-                bool isStrikethrough = runProps.Strike?.Val ?? false;
-
+                // Track formatting flags - Fixed to handle OnOffValue correctly
+                bool isBold = IsBoldSet(runProps.Bold);
+                bool isItalic = IsItalicSet(runProps.Italic);
+                bool isStrikethrough = IsStrikeSet(runProps.Strike);
                 bool isCode = IsCodeStyle(runProps);
                 bool isSubscript = runProps.VerticalTextAlignment?.Val?.Value == VerticalPositionValues.Subscript;
                 bool isSuperscript = runProps.VerticalTextAlignment?.Val?.Value == VerticalPositionValues.Superscript;
@@ -414,83 +166,165 @@ namespace ClickUpDocumentImporter.DocumentConverter
                     if (!string.IsNullOrEmpty(url))
                     {
                         sb.Append($"[{text}]({url})");
+                        lastFormatting = "";
                         continue;
                     }
                 }
 
                 // Apply markdown formatting in proper order
                 string formatted = text;
+                string currentFormatting = "";
+
+                // Extract leading and trailing whitespace
+                string leadingSpace = "";
+                string trailingSpace = "";
+                string trimmedText = text;
+
+                if (!string.IsNullOrEmpty(text))
+                {
+                    int leadingCount = text.Length - text.TrimStart().Length;
+                    int trailingCount = text.Length - text.TrimEnd().Length;
+
+                    if (leadingCount > 0)
+                        leadingSpace = text.Substring(0, leadingCount);
+
+                    if (trailingCount > 0)
+                        trailingSpace = text.Substring(text.Length - trailingCount);
+
+                    trimmedText = text.Trim();
+                }
 
                 // Code takes precedence
                 if (isCode)
                 {
-                    formatted = $"`{formatted}`";
+                    currentFormatting = "code";
+                    // Add space if previous run had same formatting and no trailing space
+                    if (lastFormatting == currentFormatting && string.IsNullOrEmpty(leadingSpace))
+                    {
+                        sb.Append(" ");
+                    }
+                    formatted = leadingSpace + $"`{trimmedText}`" + trailingSpace;
                 }
                 else
                 {
                     // Bold and Italic combined = ***text***
                     if (isBold && isItalic)
                     {
-                        formatted = $"***{formatted}***";
+                        currentFormatting = "bolditalic";
+                        if (lastFormatting == currentFormatting && string.IsNullOrEmpty(leadingSpace))
+                        {
+                            sb.Append(" ");
+                        }
+                        formatted = leadingSpace + $"***{trimmedText}***" + trailingSpace;
                     }
                     else if (isBold)
                     {
-                        formatted = $"**{formatted}**";
+                        currentFormatting = "bold";
+                        if (lastFormatting == currentFormatting && string.IsNullOrEmpty(leadingSpace))
+                        {
+                            sb.Append(" ");
+                        }
+                        formatted = leadingSpace + $"**{trimmedText}**" + trailingSpace;
                     }
                     else if (isItalic)
                     {
-                        formatted = $"*{formatted}*";
+                        currentFormatting = "italic";
+                        if (lastFormatting == currentFormatting && string.IsNullOrEmpty(leadingSpace))
+                        {
+                            sb.Append(" ");
+                        }
+                        formatted = leadingSpace + $"*{trimmedText}*" + trailingSpace;
+                    }
+                    else
+                    {
+                        formatted = text; // No formatting, keep original with spaces
+                        currentFormatting = "";
                     }
 
-                    // Strikethrough
+                    // Strikethrough (can combine with bold/italic)
                     if (isStrikethrough)
                     {
-                        formatted = $"~~{formatted}~~";
-                    }
+                        string strikeFormatting = currentFormatting + "strike";
+                        if (lastFormatting == strikeFormatting && string.IsNullOrEmpty(leadingSpace))
+                        {
+                            sb.Append(" ");
+                        }
 
-                    // !!! ClickUp Markdown does not support HTML (October 15, 2025)
-                    //// Subscript and Superscript (HTML fallback in markdown)
-                    //if (isSubscript)
-                    //{
-                    //    formatted = $"<sub>{formatted}</sub>";
-                    //}
-                    //else if (isSuperscript)
-                    //{
-                    //    formatted = $"<sup>{formatted}</sup>";
-                    //}
-
-                    //// Underline (HTML fallback in markdown)
-                    //if (isUnderline)
-                    //{
-                    //    formatted = $"<u>{formatted}</u>";
-                    //}
-
-
-                    // Highlight (HTML fallback)
-                    if (isHighlight)
-                    {
-                        var color = GetHighlightColor(runProps.Highlight);
-                        formatted = $"<mark style=\"background-color:{color}\">{formatted}</mark>";
+                        if (isBold || isItalic)
+                        {
+                            // Wrap the already formatted text
+                            formatted = leadingSpace + $"~~{trimmedText}~~" + trailingSpace;
+                        }
+                        else
+                        {
+                            formatted = leadingSpace + $"~~{trimmedText}~~" + trailingSpace;
+                        }
+                        currentFormatting = strikeFormatting;
                     }
                 }
 
                 sb.Append(formatted);
+                lastFormatting = currentFormatting;
             }
 
-            // Handle hyperlinks at paragraph level
-            foreach (var hyperlink in para.Elements<Hyperlink>())
-            {
-                string text = hyperlink.InnerText;
-                string url = GetHyperlinkUrl(hyperlink);
-                if (!string.IsNullOrEmpty(url) && !string.IsNullOrEmpty(text))
-                {
-                    // This is already handled in run processing
-                }
-            }
+            //// Handle hyperlinks at paragraph level
+            //foreach (var hyperlink in para.Elements<Hyperlink>())
+            //{
+            //    string text = hyperlink.InnerText;
+            //    string url = GetHyperlinkUrl(hyperlink);
+            //    if (!string.IsNullOrEmpty(url) && !string.IsNullOrEmpty(text))
+            //    {
+            //        // This is already handled in run processing
+            //    }
+            //}
 
             return sb.ToString();
         }
 
+        // Helper method for Bold property
+        /// <summary>
+        /// Determines whether the specified <see cref="Bold"/> instance represents a bold setting.
+        /// </summary>
+        /// <remarks>If the <paramref name="bold"/> parameter is null, the method returns <see
+        /// langword="false"/>. If the <see cref="Bold.Val"/> property is null, the method assumes a default value of
+        /// <see langword="true"/>.</remarks>
+        /// <param name="bold">The <see cref="Bold"/> instance to evaluate. Can be null.</param>
+        /// <returns><see langword="true"/> if the <paramref name="bold"/> instance is not null and its value indicates bold;
+        /// otherwise, <see langword="false"/>.</returns>
+        private bool IsBoldSet(Bold bold)
+        {
+            if (bold == null)
+                return false;
+            return bold.Val?.Value ?? true;
+        }
+
+        // Helper method for Italic property
+        private bool IsItalicSet(Italic italic)
+        {
+            if (italic == null)
+                return false;
+            return italic.Val?.Value ?? true;
+        }
+
+        // Helper method for Strike property
+        private bool IsStrikeSet(Strike strike)
+        {
+            if (strike == null)
+                return false;
+            return strike.Val?.Value ?? true;
+        }
+
+        /// <summary>
+        /// Extracts and concatenates the text content from the specified <see cref="Run"/> object,  including handling
+        /// special elements such as tabs and line breaks.
+        /// </summary>
+        /// <remarks>This method processes the elements within the <see cref="Run"/> object and converts
+        /// them  into a plain text representation. Tabs are represented as tab characters, and line breaks  are
+        /// represented as either Markdown-style line breaks ("  \n") or standard line breaks ("\n"),  depending on the
+        /// type of the break.</remarks>
+        /// <param name="run">The <see cref="Run"/> object from which to extract text content.</param>
+        /// <returns>A string containing the concatenated text content of the <paramref name="run"/>,  with tabs and line breaks
+        /// appropriately represented.</returns>
         private string GetRunText(Run run)
         {
             var sb = new StringBuilder();
@@ -568,46 +402,6 @@ namespace ClickUpDocumentImporter.DocumentConverter
             }
         }
 
-        private bool IsOrderedList(int? numId, int ilvl)
-        {
-            if (numId == null) return false;
-
-            try
-            {
-                var numberingPart = _wordDoc.MainDocumentPart.NumberingDefinitionsPart;
-                if (numberingPart == null) return false;
-
-                var numbering = numberingPart.Numbering;
-                var numInstance = numbering.Elements<NumberingInstance>()
-                    .FirstOrDefault(ni => ni.NumberID?.Value == numId);
-
-                if (numInstance == null) return false;
-
-                var abstractNumId = numInstance.AbstractNumId?.Val?.Value;
-                if (abstractNumId == null) return false;
-
-                var abstractNum = numbering.Elements<AbstractNum>()
-                    .FirstOrDefault(an => an.AbstractNumberId?.Value == abstractNumId);
-
-                if (abstractNum == null) return false;
-
-                var level = abstractNum.Elements<Level>()
-                    .FirstOrDefault(l => l.LevelIndex?.Value == ilvl);
-
-                if (level?.NumberingFormat?.Val?.Value != null)
-                {
-                    var format = level.NumberingFormat.Val.Value;
-                    return format != NumberFormatValues.Bullet;
-                }
-            }
-            catch
-            {
-                // Default to bullet if we can't determine
-            }
-
-            return false;
-        }
-
         private bool HasBottomBorder(ParagraphProperties props)
         {
             if (props?.ParagraphBorders?.BottomBorder != null)
@@ -618,65 +412,65 @@ namespace ClickUpDocumentImporter.DocumentConverter
             return false;
         }
 
-        private string GetHighlightColor(Highlight highlight)
-        {
-            if (highlight?.Val?.Value == null) return "yellow";
+        //private string GetHighlightColor(Highlight highlight)
+        //{
+        //    if (highlight?.Val?.Value == null) return "yellow";
 
-            // Get the string value of the highlight color
-            string colorValue = highlight.Val.Value.ToString().ToLower();
+        //    // Get the string value of the highlight color
+        //    string colorValue = highlight.Val.Value.ToString().ToLower();
 
-            // Map color names to CSS colors
-            return colorValue switch
-            {
-                "yellow" => "yellow",
-                "green" => "lightgreen",
-                "cyan" => "cyan",
-                "magenta" => "magenta",
-                "blue" => "lightblue",
-                "red" => "lightcoral",
-                "darkblue" => "darkblue",
-                "darkcyan" => "darkcyan",
-                "darkgreen" => "darkgreen",
-                "darkmagenta" => "darkmagenta",
-                "darkred" => "darkred",
-                "darkyellow" => "gold",
-                "darkgray" => "darkgray",
-                "lightgray" => "lightgray",
-                "black" => "black",
-                "white" => "white",
-                _ => "yellow"
-            };
-        }
+        //    // Map color names to CSS colors
+        //    return colorValue switch
+        //    {
+        //        "yellow" => "yellow",
+        //        "green" => "lightgreen",
+        //        "cyan" => "cyan",
+        //        "magenta" => "magenta",
+        //        "blue" => "lightblue",
+        //        "red" => "lightcoral",
+        //        "darkblue" => "darkblue",
+        //        "darkcyan" => "darkcyan",
+        //        "darkgreen" => "darkgreen",
+        //        "darkmagenta" => "darkmagenta",
+        //        "darkred" => "darkred",
+        //        "darkyellow" => "gold",
+        //        "darkgray" => "darkgray",
+        //        "lightgray" => "lightgray",
+        //        "black" => "black",
+        //        "white" => "white",
+        //        _ => "yellow"
+        //    };
+        //}
 
-        // Helper method to safely check boolean properties
-        // In OpenXML, if a property exists but Val is null, it's considered true
-        private bool IsBoolPropertyOn(OnOffType property)
-        {
-            if (property == null) return false;
+        //// Helper method to safely check boolean properties
+        //// In OpenXML, if a property exists but Val is null, it's considered true
+        //private bool IsBoolPropertyOn(OnOffType property)
+        //{
+        //    if (property == null) return false;
 
-            // If Val is null, the property is considered "on" (true)
-            if (property.Val == null) return true;
+        //    // If Val is null, the property is considered "on" (true)
+        //    if (property.Val == null) return true;
 
-            // Otherwise check the actual value
-            return property.Val.Value != false;
-        }
+        //    // Otherwise check the actual value
+        //    return property.Val.Value != false;
+        //}
 
-        // Reset list counters (call between document sections if needed)
-        public void ResetListCounters()
-        {
-            _listCounters.Clear();
-            _previousListLevel = -1;
-        }
+        //// Reset list counters (call between document sections if needed)
+        //public void ResetListCounters()
+        //{
+        //    _listCounters.Clear();
+        //    _previousListLevel = -1;
+        //}
 
-        // Reset counter for a specific list level (useful for nested lists)
-        private void ResetCounterForLevel(int numId, int level)
-        {
-            string listKey = $"{numId}_{level}";
-            if (_listCounters.ContainsKey(listKey))
-            {
-                _listCounters.Remove(listKey);
-            }
-        }
+        //// Reset counter for a specific list level (useful for nested lists)
+        //private void ResetCounterForLevel(int numId, int level)
+        //{
+        //    string listKey = $"{numId}_{level}";
+        //    if (_listCounters.ContainsKey(listKey))
+        //    {
+        //        _listCounters.Remove(listKey);
+        //    }
+        //}
 
         public void ProcessTable(Table table, ClickUpDocumentBuilder builder)
         {

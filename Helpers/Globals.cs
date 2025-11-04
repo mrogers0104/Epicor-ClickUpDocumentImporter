@@ -1,19 +1,9 @@
 ﻿using HashidsNet;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net.Http;
-using System.Net.Http.Headers;
-using System.Text;
-using System.Threading.Tasks;
-using System.Transactions;
 
 namespace ClickUpDocumentImporter.Helpers
 {
     internal static class Globals
     {
-
-
         #region ClickUp API Constants
 
         /// <summary>
@@ -51,8 +41,8 @@ namespace ClickUpDocumentImporter.Helpers
 
         #endregion ClickUp API Constants
 
+        #region --------------- Methods ---------------
 
-        #region  --------------- Methods ---------------
         // Add any global methods here if needed in the future.
 
         internal static string CreateUniqueImageId(string saltString)
@@ -63,7 +53,6 @@ namespace ClickUpDocumentImporter.Helpers
 
             return id;
         }
-
 
         /// <summary>
         /// Convert image EMU's to inch.
@@ -87,6 +76,6 @@ namespace ClickUpDocumentImporter.Helpers
             return (float)(emu / 9525.0);
         }
 
-        #endregion  --------------- Methods ---------------
+        #endregion --------------- Methods ---------------
     }
 }
