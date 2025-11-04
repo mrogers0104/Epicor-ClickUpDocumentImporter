@@ -5,6 +5,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <ApplicationIcon>Images\ClickUpDocImport_2.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -15,6 +16,10 @@
 
   <ItemGroup>
     <Compile Remove="DocumentConverter\PdfImageExtractor.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Images\ClickUpDocImport_2.ico" />
   </ItemGroup>
 
   <ItemGroup>
