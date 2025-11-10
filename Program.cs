@@ -51,6 +51,7 @@ namespace ClickUpDocumentImporter
         private static readonly string PARENT_PAGE_ID = "8cgpjr4-25571"; // Optional: for nesting pages
         private static readonly string LIST_ID = Globals.CLICKUP_LIST_ID; // List to add images
 
+        private static ClickUpClient client;
         private static HttpClient clickupClient = new HttpClient();
         private static List<PageInfo> allPages = new List<PageInfo>();
         private static int imageCounter = 0;
@@ -79,11 +80,20 @@ namespace ClickUpDocumentImporter
             }
 
             // *** Configure HTTP clickupClient
-            var client = new ClickUpClient();
+            client = new ClickUpClient();
             clickupClient = client.ClickUpHttpClient;
 
             // *** List all pages in your space to select parent page
             var selectionList = await ListPagesInSpace();
+
+            if (selectionList.Count == 0)
+            {
+                ConsoleHelper.WriteSeparator();
+                ConsoleHelper.WriteError("No pages found in the ClickUp Wiki");
+                ConsoleHelper.WriteError("Run terminated.");
+                ConsoleHelper.Pause();
+                return;
+            }
 
             var selectedPageName = GetPageSelection(selectionList);
 
@@ -200,12 +210,20 @@ namespace ClickUpDocumentImporter
             ConsoleHelper.LogInformation("Fetching pages in Wiki...\n");
 
             var response = await clickupClient.GetAsync(
-                $"https://api.clickup.com/api/v3/workspaces/{WORKSPACE_ID}/docs/{WIKI_ID}/pages"
+                $"workspaces/{WORKSPACE_ID}/docs/{WIKI_ID}/pages"
+                //$"https://api.clickup.com/api/v3/workspaces/{WORKSPACE_ID}/docs/{WIKI_ID}/pages"
             );
+
+            //var response = await client.GetWithRetryAsync(
+            //    $"https://api.clickup.com/api/v3/workspaces/{WORKSPACE_ID}/docs/{WIKI_ID}/pages"
+            //);
+
+            var content = await response.Content.ReadAsStringAsync();
 
             if (response.IsSuccessStatusCode)
             {
-                string json = await response.Content.ReadAsStringAsync();
+                string json = content;
+
                 // Extract pages maintaining hierarchy
                 var pages = PageExtractor.ExtractPages(json);
                 allPages = pages;
@@ -218,6 +236,14 @@ namespace ClickUpDocumentImporter
                 PageExtractor.ExtractPageHierarchy(pages, selectionItems);
 
                 return selectionItems;
+            }
+            else
+            {
+                var errorContent = content;
+
+                ConsoleHelper.WriteSeparator();
+                ConsoleHelper.WriteError($"Could not retrieve ClickUp Wiki page titles. Status Code: {response.StatusCode}");
+                ConsoleHelper.WriteError($"Error: {errorContent}");
             }
 
             return [];
