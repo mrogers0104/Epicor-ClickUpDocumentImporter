@@ -48,7 +48,7 @@ namespace ClickUpDocumentImporter
         private static readonly string WORKSPACE_ID = Globals.CLICKUP_WORKSPACE_ID;
         private static readonly string SPACE_ID = "8cgpjr4-40131";
         private static readonly string WIKI_ID = "8cgpjr4-40131";  // Wiki
-        private static readonly string PARENT_PAGE_ID = "8cgpjr4-25571"; // Optional: for nesting pages
+        private static readonly string PARENT_PAGE_ID = "8cgpjr4-27651"; // Optional: for nesting pages
         private static readonly string LIST_ID = Globals.CLICKUP_LIST_ID; // List to add images
 
         private static ClickUpClient client;
@@ -96,9 +96,15 @@ namespace ClickUpDocumentImporter
             }
 
             var selectedPageName = GetPageSelection(selectionList);
+            var page = PageExtractor.FindPageByName(allPages, selectedPageName, caseSensitive: false);
 
             //var page = PageExtractor.FindPageByName(allPages, addPagesToDoc, caseSensitive: false);
-            var page = PageExtractor.FindPageByName(allPages, selectedPageName, caseSensitive: false);
+
+            //PageInfo page = new PageInfo
+            //{
+            //    Id = PARENT_PAGE_ID,
+            //    Name = addPagesToDoc
+            //};
 
             if (page == null || page.Id == null)
             {
@@ -119,8 +125,22 @@ namespace ClickUpDocumentImporter
             string wikiId = WIKI_ID;
             string parentPageId = page?.Id;
             string listId = LIST_ID;
+
+            //string startAfterFile = "Job Tracker Customization.docx"; // Optional: to resume after a specific file
+            //bool startImport = false;
             foreach (var file in files)
             {
+                //if (Path.GetFileName(file).Equals(startAfterFile, StringComparison.OrdinalIgnoreCase))
+                //{
+                //    startImport = true;
+                //}
+
+                //if (!startImport)
+                //{
+                //    ConsoleHelper.WriteInfo($"Skipping file until match found: {Path.GetFileName(file)}");
+                //    continue;
+                //}
+
                 string ext = Path.GetExtension(file).ToLower();
                 if (ext.Equals(".docx"))
                 {
@@ -209,9 +229,11 @@ namespace ClickUpDocumentImporter
         {
             ConsoleHelper.LogInformation("Fetching pages in Wiki...\n");
 
+            // *** Configure HTTP clickupClient to resolve HTTP Error: content deadline exceeded
+            clickupClient.Timeout = TimeSpan.FromMinutes(3); // Increase from default 100s
+
             var response = await clickupClient.GetAsync(
-                $"workspaces/{WORKSPACE_ID}/docs/{WIKI_ID}/pages"
-                //$"https://api.clickup.com/api/v3/workspaces/{WORKSPACE_ID}/docs/{WIKI_ID}/pages"
+                $"https://api.clickup.com/api/v3/workspaces/{WORKSPACE_ID}/docs/{WIKI_ID}/pages"
             );
 
             //var response = await client.GetWithRetryAsync(
